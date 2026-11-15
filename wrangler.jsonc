@@ -1,0 +1,13 @@
+// Cloudflare: the static build (dist/) served as a Worker's static assets. No server code runs.
+//   bun run build && npx wrangler@4 deploy
+{
+  "name": "orpheon",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist"
+  },
+  // The site's own address. Naming a route turns workers.dev off unless it is asked for, and
+  // links to the workers.dev address were already shared, so it stays on.
+  "routes": [{ "pattern": "orpheon.cutiemirror.com", "custom_domain": true }],
+  "workers_dev": true
+}

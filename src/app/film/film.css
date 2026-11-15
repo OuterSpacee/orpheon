@@ -1,0 +1,228 @@
+/* Video: the entry and the frame's buttons at the right of the top bar, the chooser where the
+   mode's controls stand (they step aside while it is open), and the frame itself: the composed
+   picture, letterboxed in the space the controls leave, its corners marked by hairlines. */
+
+.film-top {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 30px;
+}
+
+.film-entry[aria-current] {
+  color: var(--ink);
+  text-decoration: underline 1px var(--ink-3);
+  text-underline-offset: 0.5em;
+}
+
+.film-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 26px;
+}
+
+.film-bar .action:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+/* Recording is the thing that is on: it is the warm one. */
+.film-bar .action.on {
+  color: var(--warm);
+}
+
+.film-state {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 64px;
+}
+
+.film-status {
+  font-size: 12px;
+  color: var(--warm);
+}
+
+.film-progress {
+  --done: 0;
+  width: 64px;
+  height: 1px;
+  background: linear-gradient(to right, var(--warm) calc(var(--done) * 100%), var(--hair) 0);
+}
+
+/* ── the chooser ── */
+
+.film-chooser {
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  position: fixed;
+  top: 76px;
+  right: var(--edge);
+  z-index: 6;
+  width: 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+body.choosing .controls {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.film-chooser .option span {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0;
+  white-space: pre;
+}
+
+.film-chooser .row .option span {
+  font-family: var(--sans);
+  font-size: inherit;
+  letter-spacing: inherit;
+}
+
+.film-use {
+  display: block;
+  padding-left: 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.film-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ── the frame ── */
+
+.film-picture,
+.film-edge {
+  position: fixed;
+  display: none;
+  pointer-events: none;
+}
+
+body.filming .film-picture,
+body.filming .film-edge {
+  display: block;
+}
+
+/* The heads are drawn into the picture; the body's own canvas stays under it, unseen, for the pointer. */
+body.filming .stage {
+  opacity: 0;
+}
+
+/* What the frame draws itself, the page does not draw twice. */
+body.filming .singers,
+body.filming .caption {
+  display: none;
+}
+
+.film-edge i {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 0 solid var(--ink-3);
+}
+
+.film-edge i:nth-child(1) {
+  left: -5px;
+  top: -5px;
+  border-left-width: 1px;
+  border-top-width: 1px;
+}
+
+.film-edge i:nth-child(2) {
+  right: -5px;
+  top: -5px;
+  border-right-width: 1px;
+  border-top-width: 1px;
+}
+
+.film-edge i:nth-child(3) {
+  left: -5px;
+  bottom: -5px;
+  border-left-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.film-edge i:nth-child(4) {
+  right: -5px;
+  bottom: -5px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+/* What Video is for, at the head of its menu. */
+.film-how {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.film-phone-actions {
+  display: none;
+}
+
+@media (max-width: 1000px) {
+  .film-top {
+    gap: 18px;
+  }
+
+  .film-bar {
+    gap: 16px;
+  }
+
+  /* The menu is a sheet over the page: what it would cover steps aside, the body dims. */
+  .film-chooser {
+    left: var(--edge);
+    right: var(--edge);
+    top: 112px;
+    bottom: 12px;
+    width: auto;
+    overflow-y: auto;
+  }
+
+  body.choosing .floor,
+  body.choosing .surfaces,
+  body.choosing .guide,
+  body.choosing .parts,
+  body.choosing .band-strip {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  body.choosing .stage,
+  body.choosing .film-picture {
+    opacity: 0.18;
+  }
+
+  .film-phone-actions {
+    display: flex;
+    gap: 24px;
+  }
+}
+
+/* A narrow phone: the bar keeps Record fast and Close on one line (a recording being made keeps its Stop). */
+@media (max-width: 560px) {
+  .film-bar .film-wide:not(.on) {
+    display: none;
+  }
+
+  .film-top {
+    gap: 14px;
+  }
+}
+
+/* The way out of the video, always in the bar while filming: set apart from the recording buttons. */
+.film-close {
+  margin-left: 6px;
+  padding-left: 22px;
+  border-left: 1px solid var(--hair);
+}

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+out/
+*.wav
+*.mp4
+*.webm
+shots/
+.dev.vars
+.wrangler/
+!public/samples/*.mp4

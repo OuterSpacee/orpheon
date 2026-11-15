@@ -1,0 +1,155 @@
+/* The look, as docs/look.md has it: a void, cold ink, and one warm colour for what is on. */
+
+@font-face {
+  font-family: "Ysabeau";
+  src: url("/fonts/ysabeau.woff2") format("woff2");
+  font-weight: 200 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DM Mono";
+  src: url("/fonts/dm-mono-300.woff2") format("woff2");
+  font-weight: 300;
+  font-display: swap;
+}
+
+:root {
+  --void: #030409;
+  --lift: #0a0d1a;
+  --dust: #c9d6ff;
+  --warm: #ffd58a;
+  --ink: #e8ecff;
+  --ink-2: #8a93b8;
+  --ink-3: #4a5170;
+  /* A hairline is ink-3, thinned. */
+  --hair: rgb(74 81 112 / 0.5);
+  /* Things glow or they don't. */
+  --warm-glow: 0 0 14px rgb(255 213 138 / 0.6);
+  --dust-ring: 0 0 0 5px rgb(201 214 255 / 0.2);
+
+  --sans: "Ysabeau", "Segoe UI", system-ui, sans-serif;
+  --mono: "DM Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --ease: cubic-bezier(0.3, 0, 0.2, 1);
+  --quick: 220ms;
+  --slow: 1100ms;
+
+  /* The gap between the page's edge and what sits there. */
+  --edge: 30px;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--void);
+}
+
+body {
+  font: 300 15.5px/1.5 var(--sans);
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The barely visible lift behind the head. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 46% 52% at 50% 46%, var(--lift), transparent 72%);
+  pointer-events: none;
+}
+
+h1,
+p,
+ul,
+fieldset,
+legend {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  min-width: 0;
+}
+
+ul {
+  list-style: none;
+}
+
+button,
+textarea,
+input,
+output {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+  touch-action: manipulation;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.num {
+  font-family: var(--mono);
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus: the page has no boxes, so the thing with the keyboard is underlined in starlight. */
+:focus {
+  outline: none;
+}
+
+button:focus-visible,
+.option input:focus-visible + span {
+  color: var(--ink);
+  text-decoration: underline 1px var(--dust);
+  text-underline-offset: 0.42em;
+}
+
+/* Nothing snaps: every change of colour or presence eases. */
+button,
+.option span,
+output,
+.ui,
+.edge,
+.caption,
+.stage {
+  transition:
+    color var(--quick) var(--ease),
+    opacity var(--slow) var(--ease),
+    transform var(--slow) var(--ease),
+    visibility 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    animation: none !important;
+  }
+}

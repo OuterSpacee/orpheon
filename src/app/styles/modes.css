@@ -1,0 +1,336 @@
+/* What each mode puts at the bottom of the page. */
+
+/* ── Touch: the vowel pad and the consonants ── */
+
+.touch-surface {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* The pad has no edge: the vowels mark out its field, like stars a constellation. */
+.pad {
+  position: relative;
+  width: min(560px, 100% - 44px);
+  height: 132px;
+  margin: 0 22px 14px;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* A vowel's letter stands just above its spot, so the tongue's mote can sit on the spot itself. */
+.pad-vowel {
+  position: absolute;
+  transform: translate(-50%, -7px);
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--ink-2);
+  pointer-events: none;
+  transition:
+    color var(--quick) var(--ease),
+    text-shadow var(--quick) var(--ease),
+    left var(--slow) var(--ease),
+    bottom var(--slow) var(--ease);
+}
+
+.pad-vowel.near {
+  color: var(--ink);
+}
+
+.pad.voiced .pad-vowel.near {
+  color: var(--warm);
+  text-shadow: var(--warm-glow);
+}
+
+.pad-end {
+  position: absolute;
+  bottom: -22px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+
+.pad-end.back {
+  left: -10px;
+}
+
+.pad-end.front {
+  right: -10px;
+}
+
+/* Where the tongue is. */
+.pad-spot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: 0 0 -4.5px -4.5px;
+  border-radius: 50%;
+  background: var(--dust);
+  pointer-events: none;
+  transition:
+    background var(--quick) var(--ease),
+    box-shadow var(--quick) var(--ease);
+}
+
+.pad:focus-visible .pad-spot {
+  box-shadow: var(--dust-ring);
+}
+
+.pad.voiced .pad-spot {
+  background: var(--warm);
+  box-shadow: 0 0 22px 5px rgb(255 213 138 / 0.5);
+}
+
+.consonants {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.consonant {
+  min-width: 30px;
+  height: 36px;
+  text-align: center;
+  font-size: 18px;
+  color: var(--ink-2);
+}
+
+.consonant:hover {
+  color: var(--ink);
+}
+
+.consonant:active {
+  color: var(--warm);
+  text-shadow: var(--warm-glow);
+}
+
+/* ── Speak: where the words are typed ── */
+
+.say {
+  display: block;
+  width: 100%;
+  padding: 4px 0 8px;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  resize: none;
+  font-size: 19px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--ink);
+  caret-color: var(--warm);
+  scrollbar-width: none;
+  transition: border-color var(--quick) var(--ease);
+}
+
+.say::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+
+.say:hover {
+  border-bottom-color: var(--ink-3);
+}
+
+.say:focus-visible {
+  border-bottom-color: var(--ink-2);
+}
+
+/* ── Sing: the words (among the controls) and the piano roll ── */
+
+.field {
+  display: block;
+}
+
+.words {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  padding: 2px 0 6px;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  resize: none;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  caret-color: var(--warm);
+  scrollbar-width: none;
+  transition:
+    border-color var(--quick) var(--ease),
+    color var(--quick) var(--ease);
+}
+
+.words::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+
+.words:hover {
+  border-bottom-color: var(--ink-3);
+}
+
+.words:focus-visible {
+  color: var(--ink);
+  border-bottom-color: var(--ink-2);
+}
+
+/* Under the words: how they fit the tune, and what to do about it. */
+.words-fit {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.words-fit:empty {
+  display: none;
+}
+
+.roll {
+  width: 100%;
+  height: 92px;
+}
+
+.roll-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 1000px) {
+  .pad {
+    height: 128px;
+    width: calc(100% - 44px);
+  }
+
+  .consonant {
+    min-width: 34px;
+    height: 40px;
+  }
+
+  .roll {
+    height: 84px;
+  }
+}
+
+/* ── Instrument: the vowel field and the keys ── */
+
+.instrument-surface {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.vowel-field {
+  height: 84px;
+  margin-bottom: 22px;
+}
+
+.vowel-field.voiced .pad-vowel.near {
+  color: var(--warm);
+  text-shadow: var(--warm-glow);
+}
+
+.vowel-field.voiced .pad-spot {
+  background: var(--warm);
+  box-shadow: 0 0 22px 5px rgb(255 213 138 / 0.5);
+}
+
+/* The presets: two short columns, so a dozen of them stay compact. */
+.presets {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 8px;
+}
+
+.presets legend {
+  grid-column: 1 / -1;
+}
+
+.presets .option {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Each key is a hairline: the white keys full height, the black ones shorter and set higher.
+   A key that sounds warms and glows. */
+.keys {
+  display: flex;
+  width: min(560px, 100%);
+  height: 58px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.key {
+  --level: 0;
+  position: relative;
+  flex: 1;
+  height: 100%;
+}
+
+.key::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  width: 1px;
+  height: calc(100% - 16px);
+  background: var(--ink-3);
+  transition:
+    background var(--quick) var(--ease),
+    box-shadow var(--quick) var(--ease);
+}
+
+.key.black::before {
+  bottom: auto;
+  top: 0;
+  height: 52%;
+  background: var(--hair);
+}
+
+.key:hover::before {
+  background: var(--ink-2);
+}
+
+.key.on::before {
+  width: 2px;
+  margin-left: -0.5px;
+  background: color-mix(in srgb, var(--warm) calc(var(--level) * 100%), var(--dust));
+  box-shadow: var(--warm-glow);
+}
+
+.key:focus-visible::before {
+  background: var(--dust);
+}
+
+.key-name {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+@media (max-width: 1000px) {
+  .vowel-field {
+    height: 76px;
+  }
+
+  .keys {
+    height: 64px;
+  }
+}

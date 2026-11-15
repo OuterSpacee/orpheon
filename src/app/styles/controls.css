@@ -1,0 +1,433 @@
+/* The kinds of control: a dial (a slider with its name and value), a choice, a toggle, an action.
+   None has a box. A dial is a hairline with a mote of dust on it. */
+
+.dial {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 12px;
+  align-items: baseline;
+  padding-top: 3px;
+  cursor: pointer;
+}
+
+.dial-name {
+  color: var(--ink-2);
+}
+
+.dial-value {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.dial-value:not(.num) {
+  font-size: 13.5px;
+}
+
+/* The value being changed is the warm thing. */
+.dial:active .dial-value,
+.dial:has(input:focus-visible) .dial-value {
+  color: var(--warm);
+}
+
+.dial input {
+  grid-column: 1 / -1;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 17px;
+  margin: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+
+.dial input::-webkit-slider-runnable-track {
+  height: 1px;
+  /* Two flat tones meeting at the value: ink up to it, a hairline after. */
+  background: linear-gradient(to right, var(--ink-2) calc(var(--at, 0) * 100%), var(--hair) 0);
+}
+
+.dial input::-moz-range-track {
+  height: 1px;
+  background: var(--hair);
+}
+
+.dial input::-moz-range-progress {
+  height: 1px;
+  background: var(--ink-2);
+}
+
+.dial input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 9px;
+  height: 9px;
+  margin-top: -4px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--dust);
+  transition:
+    background var(--quick) var(--ease),
+    box-shadow var(--quick) var(--ease);
+}
+
+.dial input::-moz-range-thumb {
+  width: 9px;
+  height: 9px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--dust);
+  transition:
+    background var(--quick) var(--ease),
+    box-shadow var(--quick) var(--ease);
+}
+
+.dial input:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--dust-ring);
+}
+
+.dial input:focus-visible::-moz-range-thumb {
+  box-shadow: var(--dust-ring);
+}
+
+.dial input:active::-webkit-slider-thumb {
+  background: var(--warm);
+  box-shadow: var(--warm-glow);
+}
+
+.dial input:active::-moz-range-thumb {
+  background: var(--warm);
+  box-shadow: var(--warm-glow);
+}
+
+/* What the two ends of a dial mean. */
+.dial-ends {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  margin-top: -4px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+/* A choice: a short list of words; the chosen one is lit and marked with a mote. */
+.choice {
+  display: flex;
+  flex-direction: column;
+}
+
+.choice legend {
+  padding: 5px 0 3px;
+}
+
+.option {
+  position: relative;
+  display: block;
+  padding: 2.5px 0 2.5px 16px;
+  cursor: pointer;
+}
+
+.option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.option span {
+  color: var(--ink-2);
+}
+
+.option:hover span {
+  color: var(--ink);
+}
+
+.option input:checked + span {
+  color: var(--ink);
+}
+
+.option input:checked + span::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background: var(--dust);
+}
+
+/* A toggle: its mote is hollow when off, warm when on. */
+.toggle,
+.action {
+  display: block;
+  padding: 4px 0;
+  color: var(--ink-2);
+}
+
+.toggle {
+  position: relative;
+  padding-left: 16px;
+}
+
+.toggle::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--ink-3);
+  transition:
+    background var(--quick) var(--ease),
+    box-shadow var(--quick) var(--ease);
+}
+
+.toggle[aria-pressed="true"] {
+  color: var(--ink);
+}
+
+.toggle[aria-pressed="true"]::before {
+  background: var(--warm);
+  box-shadow: var(--warm-glow);
+}
+
+.toggle:hover,
+.action:hover {
+  color: var(--ink);
+}
+
+.action.busy {
+  color: var(--warm);
+}
+
+/* A choice laid out in a row: the words side by side, each with its mote. */
+.choice.row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  column-gap: 14px;
+}
+
+.choice.row .option {
+  padding-left: 12px;
+}
+
+.choice.row .option input:checked + span::before {
+  left: 0;
+}
+
+/* A section that folds: its title is a line of text with a small chevron, pointing at the title
+   while closed and down while open (a dot means "on" everywhere else, so a section has none). */
+.section-title {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 0 5px 16px;
+  color: var(--ink-2);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.section-title::-webkit-details-marker {
+  display: none;
+}
+
+.section-title::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -3.5px;
+  border-right: 1px solid var(--ink-2);
+  border-bottom: 1px solid var(--ink-2);
+  transform: rotate(-45deg);
+  transition: transform var(--quick) var(--ease);
+}
+
+.section[open] > .section-title {
+  color: var(--ink);
+}
+
+.section[open] > .section-title::before {
+  transform: rotate(45deg);
+}
+
+.section-title:hover {
+  color: var(--ink);
+}
+
+.section-title:focus-visible {
+  color: var(--ink);
+  text-decoration: underline 1px var(--dust);
+  text-underline-offset: 0.42em;
+}
+
+.section-note {
+  margin-left: auto;
+  overflow: hidden;
+  max-width: 62%;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.section-body {
+  padding: 2px 0 10px 16px;
+}
+
+.section + .section {
+  margin-top: 2px;
+}
+
+/* Why the band is what it is, who sings when (staged), and what the AI arranger made of a file:
+   quietly, under their controls. */
+.ai-note,
+.style-story,
+.band-why {
+  margin: 4px 0 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.ai-note:empty,
+.style-story:empty,
+.band-why:empty {
+  display: none;
+}
+
+/* The plan is read, not glanced at: a step brighter than the band's reason. */
+.style-story {
+  color: var(--ink-2);
+}
+
+/* Another of the critic's plans: a quiet action under the plan's line. */
+.try-another {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+/* The instruments: two short columns of toggles. */
+.instrument-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 10px;
+}
+
+/* What the arranger suggests for this song reads a step brighter, wherever it stands. */
+.instrument-grid .toggle.suggested {
+  color: var(--ink);
+}
+
+.instrument-grid .toggle {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  white-space: nowrap;
+}
+
+.band-controls > .dial {
+  margin-top: 6px;
+}
+
+.tracks {
+  margin-top: 8px;
+}
+
+.tracks-title {
+  padding: 4px 0 0;
+}
+
+.tracks .choice legend {
+  overflow: hidden;
+  max-width: 100%;
+  padding-bottom: 0;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ── the singers of a choir ── */
+
+.singer-pick {
+  padding: 2px 0;
+  overflow: hidden;
+  color: var(--ink-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.singer-pick:hover {
+  color: var(--ink);
+}
+
+.singer-pick[aria-pressed="true"] {
+  color: var(--ink);
+  text-decoration: underline 1px var(--ink-3);
+  text-underline-offset: 0.42em;
+}
+
+.singer-pick.all {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.singer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  column-gap: 9px;
+  align-items: baseline;
+  padding: 1px 0;
+}
+
+.singer-row .singer-pick {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.singer-body {
+  grid-column: 1;
+  grid-row: 2;
+  margin-top: -3px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* The note a singer is on: warm, because it is sounding. */
+.singer-note {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 2.4em;
+  font-size: 12px;
+  text-align: right;
+  color: var(--warm);
+}
+
+.singer-flag {
+  grid-row: 1;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.singer-flag:hover {
+  color: var(--ink-2);
+}
+
+.singer-flag[aria-pressed="true"] {
+  color: var(--warm);
+}
+
+.singer-dials {
+  margin: 6px 0 0 10px;
+}
+
+.singer-row.unheard .singer-pick,
+.singer-row.unheard .singer-note {
+  color: var(--ink-3);
+}

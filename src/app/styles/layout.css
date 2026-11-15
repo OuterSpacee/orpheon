@@ -1,0 +1,925 @@
+/* Where things sit: the body's canvas is the whole page; the name and modes at the top, the
+   parts at the left edge, the mode's controls at the right, the words and the transport at the
+   bottom. Nothing but the canvas has a background. */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* Under the words and controls the dark gathers a little, so small type reads over the dust of the
+   neck and the lungs; a breath of it under the top bar too. It goes with the controls. */
+.veil {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to top, rgb(3 4 9 / 0.9), rgb(3 4 9 / 0.62) 15%, rgb(3 4 9 / 0) 32%),
+    linear-gradient(to bottom, rgb(3 4 9 / 0.55), rgb(3 4 9 / 0) 96px);
+  transition: opacity var(--slow) var(--ease);
+}
+
+body.away .veil,
+body.alone .veil {
+  opacity: 0;
+}
+
+/* The edges let the pointer through to the body wherever they are empty. */
+.top,
+.edge,
+.floor {
+  position: fixed;
+  pointer-events: none;
+}
+
+.top > *,
+.edge > *,
+.surfaces,
+.transport,
+.guide button {
+  pointer-events: auto;
+}
+
+/* ── top ── */
+
+.top {
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 48px;
+  padding: 24px var(--edge) 0;
+}
+
+.name {
+  font-size: 17px;
+  letter-spacing: 0.28em;
+  color: var(--ink);
+}
+
+.modes {
+  display: flex;
+  gap: 30px;
+}
+
+.mode {
+  padding: 4px 0;
+  color: var(--ink-2);
+}
+
+.mode:hover {
+  color: var(--ink);
+}
+
+.mode[aria-current] {
+  color: var(--ink);
+  text-decoration: underline 1px var(--ink-3);
+  text-underline-offset: 0.5em;
+}
+
+/* ── the edges ── */
+
+/* Both side columns start under the top bar, level with each other, and scroll if they must. */
+.edge {
+  top: 92px;
+  width: 218px;
+  max-height: calc(100dvh - 92px - 24px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+/* What a column or a group of controls is about: small, quiet, and spaced, above it. */
+h2 {
+  margin: 0;
+  font: inherit;
+}
+
+.edge-title,
+.group-title,
+.group > .choice:first-child > legend {
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  letter-spacing: 0.18em;
+  color: rgb(138 147 184 / 0.75);
+}
+
+.part-list + .edge-title {
+  margin-top: 26px;
+}
+
+/* The sheets' own heads and buttons belong to a phone. */
+.sheet-head,
+.sheet-buttons {
+  display: none;
+}
+
+/* The link to the source: at the top right beside Video; on a phone, in More. */
+a.mode,
+a.action {
+  text-decoration: none;
+}
+
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.source svg {
+  flex: none;
+  opacity: 0.85;
+}
+
+.top > .source {
+  margin-left: auto;
+  translate: 0 2px;
+}
+
+.top > .source + .film-top {
+  margin-left: 30px;
+}
+
+.transport-rest > .source {
+  display: none;
+}
+
+/* Bringing in a file of one's own, set a little apart from the songs that come with the page. */
+.import {
+  margin-top: 14px;
+}
+
+.import .toggle {
+  font-size: 14px;
+}
+
+.edge::-webkit-scrollbar {
+  display: none;
+}
+
+/* A list longer than the screen fades where more is hidden, so it reads as one that scrolls. */
+.edge.more-below {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent);
+}
+
+.edge.more-above {
+  mask-image: linear-gradient(to bottom, transparent, #000 40px);
+}
+
+.edge.more-above.more-below {
+  mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 56px), transparent);
+}
+
+/* Put a sheet away: only on a phone, where the lists are sheets. */
+.sheet-done {
+  display: none;
+}
+
+/* The first thing to do, when the voice is asleep, is said larger. */
+.guide.first {
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.parts {
+  left: var(--edge);
+}
+
+.controls {
+  right: var(--edge);
+}
+
+.part {
+  display: flex;
+  align-items: center;
+  height: 31px;
+}
+
+.part-dot {
+  position: relative;
+  flex: none;
+  width: 24px;
+  height: 31px;
+}
+
+.part-dot::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--dust);
+  transition:
+    background var(--quick) var(--ease),
+    box-shadow var(--quick) var(--ease),
+    opacity var(--quick) var(--ease);
+}
+
+.part-dot:hover::before,
+.part-dot:focus-visible::before {
+  box-shadow: var(--dust-ring);
+}
+
+.part-name {
+  flex: 1;
+  padding: 3px 0;
+  color: var(--ink-2);
+}
+
+.part-name:hover {
+  color: var(--ink);
+}
+
+/* A hidden part: its mote goes hollow and its name dims. */
+.part[data-shown="false"] .part-dot::before {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--ink-3);
+}
+
+.part[data-shown="false"] .part-name {
+  color: var(--ink-3);
+}
+
+/* One part shown alone: it is the warm one, the rest are ghosts. */
+.part[data-solo="true"] .part-dot::before {
+  background: var(--warm);
+  box-shadow: var(--warm-glow);
+}
+
+.part[data-solo="true"] .part-name {
+  color: var(--ink);
+}
+
+.part[data-ghost="true"] .part-dot::before {
+  opacity: 0.3;
+}
+
+.part[data-ghost="true"] .part-name {
+  color: var(--ink-3);
+}
+
+.part-dials {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.group + .group {
+  margin-top: 20px;
+}
+
+.midi {
+  padding: 4px 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+/* ── the label that names a part of the body ── */
+
+.whisper {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  max-width: 250px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 320ms var(--ease);
+}
+
+.whisper.shown {
+  opacity: 1;
+}
+
+.whisper b {
+  display: block;
+  font-weight: 300;
+  color: var(--ink);
+}
+
+.whisper span {
+  display: block;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+/* ── a choir: each singer's name under its head, and the word it is singing ── */
+
+.singers {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--slow) var(--ease);
+}
+
+.singers.shown {
+  opacity: 1;
+}
+
+body.alone .singers {
+  opacity: 0;
+}
+
+.singer {
+  --level: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  white-space: nowrap;
+  text-shadow:
+    0 0 5px var(--void),
+    0 0 12px var(--void);
+}
+
+.singer-name {
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+  transition: color var(--slow) var(--ease);
+}
+
+.singer.quiet .singer-name {
+  color: var(--ink-3);
+}
+
+/* The word warms with that voice's loudness, as the big caption does with the tune's. */
+.singer-word {
+  height: 1.35em;
+  font-size: 19px;
+  font-weight: 300;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--warm) calc(var(--level) * 100%), var(--ink));
+}
+
+/* ── bottom ── */
+
+.floor {
+  left: 50%;
+  bottom: 20px;
+  width: min(700px, calc(100vw - 2 * (218px + 2 * var(--edge))));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Small words over the dust of the neck: a little of the void gathers behind each letter. */
+  text-shadow:
+    0 0 5px var(--void),
+    0 0 12px var(--void);
+}
+
+.caption {
+  --level: 0;
+  text-align: center;
+}
+
+body[data-mode="touch"] .caption {
+  display: none;
+}
+
+/* The only large type on the page. It warms and glows with the loudness of the voice. */
+.word {
+  height: 1.12em;
+  font-size: clamp(40px, 5.2vw, 78px);
+  font-weight: 200;
+  line-height: 1.12;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--warm) calc(var(--level) * 100%), var(--ink));
+  text-shadow: 0 0 calc(8px + var(--level) * 30px) rgb(255 213 138 / calc(var(--level) * 0.5));
+}
+
+.phones {
+  display: flex;
+  justify-content: center;
+  gap: 0.6em;
+  height: 30px;
+  font-size: 19px;
+  color: var(--ink-2);
+}
+
+.phones span {
+  transition: color 120ms var(--ease);
+}
+
+.phones .done {
+  color: var(--ink);
+}
+
+.phones .now {
+  color: var(--warm);
+  text-shadow: var(--warm-glow);
+}
+
+.guide {
+  min-height: 23px;
+  text-align: center;
+  font-size: 14.5px;
+}
+
+.guide.trouble span {
+  color: var(--ink);
+}
+
+.guide .offer {
+  display: inline;
+  margin-left: 12px;
+  color: var(--ink);
+  text-decoration: underline 1px var(--ink-3);
+  text-underline-offset: 0.42em;
+}
+
+.transport,
+.transport-main,
+.transport-rest {
+  display: flex;
+  align-items: center;
+}
+
+.transport {
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 44px;
+}
+
+.transport-main {
+  gap: 18px;
+}
+
+.transport-rest {
+  gap: 22px;
+  margin-left: auto;
+}
+
+/* The main button: a word, with a mote that warms while the voice performs. */
+.go {
+  position: relative;
+  padding: 6px 0 6px 18px;
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.go::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--ink-2);
+  transition:
+    background var(--quick) var(--ease),
+    box-shadow var(--quick) var(--ease);
+}
+
+.go.on::before {
+  background: var(--warm);
+  box-shadow: var(--warm-glow);
+}
+
+.time {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: pre;
+}
+
+.time.sound {
+  color: var(--warm);
+}
+
+.transport .dial {
+  width: 92px;
+  padding-top: 0;
+}
+
+.transport .action {
+  white-space: nowrap;
+}
+
+.sheet-button {
+  display: none;
+}
+
+/* ── stepping back ── */
+
+body.away .ui,
+body.alone .ui {
+  opacity: 0;
+}
+
+/* While a song plays and the rest has faded, Stop stays within reach, faintly. */
+body.away:not(.alone) .floor {
+  opacity: 0.3;
+}
+
+body.away:not(.alone) .floor .go {
+  pointer-events: auto;
+}
+
+body.away .ui *,
+body.alone .ui * {
+  pointer-events: none;
+}
+
+/* Hidden by hand: out of the keyboard's way too, once it has faded. */
+body.alone .ui {
+  visibility: hidden;
+  transition:
+    opacity var(--slow) var(--ease),
+    visibility 0s linear var(--slow);
+}
+
+body.alone .caption {
+  opacity: 0;
+}
+
+.return {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  display: none;
+}
+
+body.alone .return {
+  display: block;
+}
+
+.return::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  transition:
+    background var(--quick) var(--ease),
+    box-shadow var(--quick) var(--ease);
+}
+
+.return:hover::before,
+.return:focus-visible::before {
+  background: var(--dust);
+  box-shadow: var(--dust-ring);
+}
+
+/* ── short windows: tighten before anything collides ── */
+
+@media (max-height: 760px) and (min-width: 1001px) {
+  .part {
+    height: 28px;
+  }
+
+  .part-dot {
+    height: 28px;
+  }
+
+  .group + .group {
+    margin-top: 10px;
+  }
+
+  /* Clear of the top bar's words at the right (Video) as well as the floor. */
+  .edge {
+    max-height: calc(100dvh - 132px);
+  }
+
+  .dial-ends {
+    display: none;
+  }
+}
+
+/* ── a phone: the name and Video on one line, the modes across the next; at the foot one row
+   (the main button, then Body, Controls and More), each of those three a sheet that rises above it ── */
+
+@media (max-width: 1000px) {
+  :root {
+    --edge: 18px;
+    --foot: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .top {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 6px 0;
+    padding: max(12px, env(safe-area-inset-top)) var(--edge) 0;
+  }
+
+  .name {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 15px;
+    letter-spacing: 0.22em;
+  }
+
+  .top > .film-top {
+    grid-column: 2;
+    grid-row: 1;
+    margin-left: 0;
+  }
+
+  /* GitHub stays in sight on a phone too, as its mark alone, just before Video (sharing the
+     name's cell, whose width is the rest of the line). */
+  .top > .source {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+    margin: 0 10px 0 0;
+    padding: 8px;
+  }
+
+  .top > .source span {
+    display: none;
+  }
+
+  .top > .source svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .transport-rest > .source {
+    display: flex;
+  }
+
+  /* The modes share the width evenly, each a tap as tall as a finger. */
+  .modes {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: space-between;
+    gap: 0;
+  }
+
+  .mode {
+    padding: 10px 0;
+  }
+
+  .floor {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    padding: 0 var(--edge) var(--foot);
+    transform: none;
+    gap: 6px;
+  }
+
+  .word {
+    font-size: clamp(34px, 10vw, 56px);
+  }
+
+  .phones {
+    font-size: 16px;
+    height: 26px;
+  }
+
+  .guide {
+    font-size: 13.5px;
+    line-height: 1.4;
+  }
+
+  /* The foot: one row. */
+  .transport {
+    gap: 12px;
+  }
+
+  .transport-main {
+    flex: 1;
+    gap: 12px;
+    min-height: 48px;
+  }
+
+  .sheet-buttons {
+    display: flex;
+    gap: 20px;
+    margin-left: auto;
+  }
+
+  .sheet-button {
+    display: block;
+    padding: 12px 0;
+  }
+
+  .sheet-button[aria-expanded="true"] {
+    color: var(--warm);
+  }
+
+  .time {
+    font-size: 11px;
+  }
+
+  /* ── the sheets: the two side columns and the rest of the transport ── */
+
+  .edge,
+  .transport-rest {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: calc(var(--transport, 48px) + var(--foot));
+    width: auto;
+    max-height: min(64dvh, calc(100dvh - 150px));
+    margin: 0;
+    padding: 0 22px 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    z-index: 3;
+    /* On a phone the sheet must stand over the body to be read: a panel of the void itself. */
+    background: rgb(7 9 18 / 0.96);
+    border-top: 1px solid var(--hair);
+    border-radius: 18px 18px 0 0;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    pointer-events: auto;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(16px);
+    transition:
+      opacity 360ms var(--ease),
+      transform 360ms var(--ease),
+      visibility 0s linear 360ms;
+  }
+
+  .edge.more-below,
+  .edge.more-above,
+  .edge.more-above.more-below {
+    mask-image: none;
+  }
+
+  body[data-sheet="parts"] .parts,
+  body[data-sheet="controls"] .controls,
+  body[data-sheet="more"] .transport-rest {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition:
+      opacity 360ms var(--ease),
+      transform 360ms var(--ease),
+      visibility 0s;
+  }
+
+  .sheet-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 -22px 6px;
+    padding: 14px 22px 8px;
+    background: rgb(7 9 18);
+  }
+
+  .sheet-name {
+    font-size: 16px;
+    color: var(--ink);
+  }
+
+  .sheet-head .sheet-done {
+    display: block;
+    padding: 8px 0;
+    color: var(--warm);
+  }
+
+  /* The body's sheet is called that already. */
+  .parts > .sheet-head + .edge-title {
+    display: none;
+  }
+
+  /* The body steps back while a sheet is up. */
+  body:not([data-sheet="none"]) .stage {
+    opacity: 0.45;
+  }
+
+  /* What a sheet covers steps aside for it. */
+  body:not([data-sheet="none"]) .surfaces,
+  body:not([data-sheet="none"]) .guide,
+  body:not([data-sheet="none"]) .caption {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  /* ── inside the sheets ── */
+
+  .part-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 26px;
+  }
+
+  .part,
+  .part-dot {
+    height: 42px;
+  }
+
+  .part-list + .edge-title {
+    margin-top: 18px;
+  }
+
+  .mode-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+    row-gap: 4px;
+  }
+
+  /* The groups dissolve into the one column; each title opens its stretch of it. */
+  .group {
+    display: contents;
+  }
+
+  .group-title {
+    margin-top: 14px;
+  }
+
+  .group.wide > * {
+    grid-column: 1 / -1;
+  }
+
+  .option,
+  .toggle,
+  .action {
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+
+  .dial input {
+    height: 32px;
+  }
+
+  .dial-ends {
+    margin-top: -9px;
+  }
+
+  /* The rest of the transport, as a list: Room, then saving, the link, and hiding everything. */
+  .transport-rest {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+
+  .transport-rest .dial {
+    width: auto;
+  }
+
+  .transport-rest .action {
+    text-align: left;
+    padding: 13px 0;
+  }
+
+  /* A phone has volume buttons of its own; the room keeps its dial. */
+  .transport-rest > label.dial:first-of-type {
+    display: none;
+  }
+}
+
+/* ── the band, named along the bottom edge: each name warms with its instrument's loudness ── */
+
+.band-strip {
+  position: fixed;
+  left: 50%;
+  bottom: 2px;
+  display: flex;
+  gap: 20px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.band-name {
+  --level: 0;
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  color: color-mix(in srgb, var(--warm) calc(var(--level) * 100%), var(--ink-3));
+  text-shadow: 0 0 calc(var(--level) * 12px) rgb(255 213 138 / calc(var(--level) * 0.6));
+}
+
+@media (max-width: 1000px) {
+  /* The band's names run along the very bottom: the foot stands above them. */
+  body.banded {
+    --foot: calc(max(10px, env(safe-area-inset-bottom)) + 18px);
+  }
+
+  .band-strip {
+    gap: 14px;
+    max-width: calc(100vw - 2 * var(--edge));
+    overflow: hidden;
+  }
+}
