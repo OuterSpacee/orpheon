@@ -68,20 +68,25 @@ const THROAT = [3.5, -4, 0] as const;
 export const BACK_ROW = 12;
 /** How far down (radians) a directed shot on some of a choir in rows looks, to part the rows. */
 const ROWS_APART = 0.24;
-/** How much of its turn a directed shot keeps when the choir stands in rows. */
+/** How much of its turn a directed shot on some of a choir keeps when the choir stands in rows. */
 const ROWS_TURN = 0.45;
+/** How much of a look from below a choir in rows is given. */
+const ROWS_BELOW = 0.45;
 
 /** Does the choir stand in more than one row? */
 export const inRows = (heads: readonly (Placement | null)[]): boolean => heads.some((p) => !!p && p.z < -BACK_ROW);
 
 /**
- * The eye's turn and lean that a directed shot adds. A choir standing in rows is turned less far
- * (seen much from the side, one row stands in front of the other), and a shot on some of them
- * looks a little down on it, which parts the rows: the one behind rises in the picture, the one in
+ * The eye's turn and lean that a directed shot adds. A shot on some of a choir standing in rows
+ * turns less far (seen much from the side, one row stands in front of the other), and looks a
+ * little down on them, which parts the rows: the one behind rises in the picture, the one in
  * front sinks.
  */
 export function shotTurn(ask: { yaw: number; pitch: number; toward: number }, rows: boolean): { yaw: number; pitch: number } {
-  return rows ? { yaw: ask.yaw * ROWS_TURN, pitch: ask.pitch + ROWS_APART * ask.toward } : { yaw: ask.yaw, pitch: ask.pitch };
+  // (the whole choir may be turned: every head is in the shot, and an arc round it shows the rows
+  // as rows; but seen from below the row in front rises over the faces behind, so less of that)
+  if (!rows) return { yaw: ask.yaw, pitch: ask.pitch };
+  return { yaw: ask.yaw * (1 - (1 - ROWS_TURN) * ask.toward), pitch: (ask.pitch < 0 ? ask.pitch * ROWS_BELOW : ask.pitch) + ROWS_APART * ask.toward };
 }
 
 /** The point of a head a directed shot looks at, `detail` of the way from its face to its throat. */
