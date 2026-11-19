@@ -616,4 +616,4 @@ simulated vocal tract can sing in a browser. Orpheon is a separate program writt
 and contains none of that project's code. English pronunciation comes from the
 [CMU Pronouncing Dictionary](https://github.com/cmusphinx/cmudict) (its licence is in
 `public/lang/`). The typefaces are Ysabeau and DM Mono, under the SIL Open Font License
-(`public/fonts/`). The built-in songs are in the public domain.
+(`public/fonts/`). The built-in songs are traditional or in the public domain; each one's source is in its credit line.
