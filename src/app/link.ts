@@ -1,7 +1,8 @@
-// The share link: the mode, the text, the song and the body, the song's choir and band, and the
-// Instrument mode's sound, carried after the "#" of the page's address. Only what differs from a fresh page is written, so most links are short. Whatever
+// The share link: the mode, the text, the song and the body, the song's choir and band, the
+// Instrument mode's sound, and what the singers wear, carried after the "#" of the page's address. Only what differs from a fresh page is written, so most links are short. Whatever
 // arrives is checked before it is believed: a link is something a stranger typed.
 import { INSTRUMENTS } from "../contract.ts";
+import { wardrobeCode, wardrobeFromCode } from "../view/decor/outfit.ts";
 import type { InstrumentId } from "../contract.ts";
 import type { Lang } from "../lang/index.ts";
 import { BODY_MAX, BODY_NAMES } from "./bodies.ts";
@@ -17,12 +18,12 @@ import type { Mode, State } from "./state.ts";
 /** The part of the state a link carries. */
 export type Shared = Pick<
   State,
-  "mode" | "body" | "text" | "lang" | "pace" | "pitch" | "lively" | "song" | "lyrics" | "transpose" | "tempo" | "shimmer" | "setups" | "bandLevel" | "singAs" | "preset" | "tone"
+  "mode" | "body" | "text" | "lang" | "pace" | "pitch" | "lively" | "song" | "lyrics" | "transpose" | "tempo" | "shimmer" | "setups" | "bandLevel" | "singAs" | "preset" | "tone" | "outfits"
 >;
 
 /** The keys of the state a link carries: when one changes, the address is written again. */
 export const SHARED_KEYS = [
-  "mode", "body", "text", "lang", "pace", "pitch", "lively", "song", "lyrics", "transpose", "tempo", "shimmer", "setups", "bandLevel", "singAs", "preset", "tone",
+  "mode", "body", "text", "lang", "pace", "pitch", "lively", "song", "lyrics", "transpose", "tempo", "shimmer", "setups", "bandLevel", "singAs", "preset", "tone", "outfits",
 ] as const satisfies readonly (keyof Shared)[];
 
 /** The Instrument mode's tone in a link: the name each value goes by. */
@@ -87,6 +88,9 @@ export function encodeLink(s: Shared): string {
       if (value !== round(own[k], digitsOf(k))) q.set(TONE_KEYS[k], String(value));
     }
   }
+  // What the singers wear, in every mode: "crown.hoops~~santa" dresses the first and the third.
+  const dress = wardrobeCode(s.outfits ?? {});
+  if (dress) q.set("dress", dress);
   const mine: (keyof typeof NUMBERS)[] = s.mode === "speak" ? ["pace", "pitch", "lively"] : s.mode === "sing" ? ["transpose", "tempo", "shimmer"] : [];
   for (const name of mine) {
     const n = NUMBERS[name];
@@ -156,6 +160,9 @@ export function decodeLink(fragment: string): Partial<Shared> {
     toned = true;
   }
   if (toned) out.tone = tone;
+
+  const dress = q.get("dress");
+  if (dress !== null) out.outfits = wardrobeFromCode(dress);
 
   for (const name in NUMBERS) {
     const n = NUMBERS[name as keyof typeof NUMBERS];

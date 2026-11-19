@@ -5,6 +5,7 @@ import { LAYERS, TELEMETRY } from "../../contract.ts";
 import type { LayerId, Score } from "../../contract.ts";
 import { createAnatomyView } from "../../view/index.ts";
 import type { AnatomyViewLab } from "../../view/index.ts";
+import { outfitCode } from "../../view/decor/outfit.ts";
 import type { App } from "../app.ts";
 import { sizedBody } from "../bodies.ts";
 import { captionAt } from "../caption.ts";
@@ -32,14 +33,14 @@ export interface Stage {
 
 type View = Pick<
   AnatomyViewLab,
-  "frame" | "frameOf" | "cast" | "spot" | "stats" | "layer" | "solo" | "explode" | "cut" | "look" | "room" | "onGrab" | "onHover" | "onSinger" | "dispose" | "density" | "colour"
+  "frame" | "frameOf" | "cast" | "spot" | "stats" | "layer" | "solo" | "explode" | "cut" | "look" | "room" | "onGrab" | "onHover" | "onSinger" | "dispose" | "density" | "colour" | "decorations"
 >;
 
 /** A view that draws nothing, for a device that cannot draw the body. */
 function unseen(): View {
   const nothing = () => {};
   return {
-    frame: nothing, frameOf: nothing, cast: nothing, spot: () => null, layer: nothing, solo: nothing, explode: nothing, cut: nothing, density: nothing, colour: nothing,
+    frame: nothing, frameOf: nothing, cast: nothing, spot: () => null, layer: nothing, solo: nothing, explode: nothing, cut: nothing, density: nothing, colour: nothing, decorations: nothing,
     look: nothing, room: nothing, onGrab: null, onHover: null, onSinger: null, dispose: nothing,
     stats: () => ({ particles: 0, drawn: 0, width: 0, height: 0, frame: 0, density: 0, card: "none", singers: 0 }),
   };
@@ -53,6 +54,8 @@ interface Singer {
   size?: number;
   seat: number;
   score: Score | null;
+  /** Which singer of the line-up this is, for what it wears (State.outfits): the same singer keeps its clothes whichever head shows it. */
+  who: number;
 }
 
 /** How long a name stays lit after its voice falls silent, in seconds, as its head does. */
@@ -67,15 +70,15 @@ export function castOf(s: State): Singer[] {
   const focused = s.focus >= 0 ? parts.findIndex((part, seat) => (part.line ?? seat) === s.focus) : -1;
   if (parts.length > 1 && focused >= 0) {
     const part = parts[focused];
-    return [{ name: "", body: part.body, size: part.size, seat: focused, score: part.score }];
+    return [{ name: "", body: part.body, size: part.size, seat: focused, score: part.score, who: s.focus }];
   }
-  if (parts.length > 1) return parts.map((part, seat) => ({ name: part.name ?? `Voice ${seat + 1}`, body: part.body, size: part.size, seat, score: part.score }));
-  if (parts.length === 1 && parts[0].size) return [{ name: "", body: parts[0].body, size: parts[0].size, seat: 0, score: null }];
+  if (parts.length > 1) return parts.map((part, seat) => ({ name: part.name ?? `Voice ${seat + 1}`, body: part.body, size: part.size, seat, score: part.score, who: part.line ?? seat }));
+  if (parts.length === 1 && parts[0].size) return [{ name: "", body: parts[0].body, size: parts[0].size, seat: 0, score: null, who: 0 }];
   // The Instrument mode is six voices, a head for each, lit as each one sings.
-  if (s.mode === "instrument") return Array.from({ length: 6 }, (_, seat) => ({ name: `Voice ${seat + 1}`, body: s.body, size: s.tone.size, seat, score: null }));
+  if (s.mode === "instrument") return Array.from({ length: 6 }, (_, seat) => ({ name: `Voice ${seat + 1}`, body: s.body, size: s.tone.size, seat, score: null, who: seat }));
   const voices = clamp(Math.round(s.voices), 1, 6);
-  if (s.mode === "touch" && voices > 1) return Array.from({ length: voices }, (_, seat) => ({ name: `Voice ${seat + 1}`, body: s.body, seat, score: null }));
-  return [{ name: "", body: s.body, seat: 0, score: null }];
+  if (s.mode === "touch" && voices > 1) return Array.from({ length: voices }, (_, seat) => ({ name: `Voice ${seat + 1}`, body: s.body, seat, score: null, who: seat }));
+  return [{ name: "", body: s.body, seat: 0, score: null, who: 0 }];
 }
 
 /** The room a box takes from the window, or nothing when it is hidden or empty. */
@@ -158,10 +161,13 @@ export function mountStage(app: App): Stage {
   function recast(s: State): void {
     const next = castOf(s);
     singers = next;
-    const key = next.map((x) => `${x.name}:${x.body.toFixed(2)}:${(x.size ?? 1).toFixed(2)}`).join("|");
+    const key = next.map((x) => `${x.name}:${x.body.toFixed(2)}:${(x.size ?? 1).toFixed(2)}:${outfitCode(s.outfits[x.who] ?? { head: null, jewels: [], eyes: null })}`).join("|");
     if (key === castKey) return;
+    const sameNames = castKey.split("|").map((k) => k.split(":")[0]).join("|") === next.map((x) => x.name).join("|");
     castKey = key;
-    view.cast(next.map((x) => ({ name: x.name, body: sizedBody(x.body, x.size) })));
+    view.cast(next.map((x) => ({ name: x.name, body: sizedBody(x.body, x.size), outfit: s.outfits[x.who] })));
+    // Only the clothes changed: the names under the heads stay as they are.
+    if (sameNames && labels.length === next.length) return;
     labels.length = 0;
     names.replaceChildren();
     if (next.length < 2) return;
@@ -172,7 +178,7 @@ export function mountStage(app: App): Stage {
       names.append(label.root);
     }
   }
-  store.on(["playing", "mode", "voices", "body", "focus", "tone"], recast);
+  store.on(["playing", "mode", "voices", "body", "focus", "tone", "outfits"], recast);
   recast(store.get());
 
   // Each head is shown by its own voice; one head alone follows the voice Touch last played.
@@ -216,6 +222,7 @@ export function mountStage(app: App): Stage {
   store.on(["explode"], (s) => view.explode(s.explode));
   store.on(["density"], (s) => view.density(s.density));
   store.on(["colour"], (s) => view.colour(s.colour));
+  store.on(["dressed"], (s) => view.decorations(s.dressed ? 1 : 0));
 
   return {
     canvas,

@@ -378,7 +378,8 @@ export function mountFilm(app: App, stage: Stage, go: () => void): Film {
   /** The view's cast for a performance: each head's name and body, as the stage would seat them. */
   function castFor(p: Performance, singers: Singer[]) {
     const all = castOf({ ...store.get(), playing: p });
-    return singers.map((x, i) => ({ name: x.name, body: sizedBody(all[i]?.body ?? p.parts[x.seat]?.body ?? 3, all[i]?.size ?? p.parts[x.seat]?.size) }));
+    const outfits = store.get().outfits;
+    return singers.map((x, i) => ({ name: x.name, body: sizedBody(all[i]?.body ?? p.parts[x.seat]?.body ?? 3, all[i]?.size ?? p.parts[x.seat]?.size), outfit: outfits[all[i]?.who ?? x.seat] }));
   }
 
   function enter(): void {
