@@ -17,6 +17,8 @@ import { FREUDE } from "./written/freude.ts";
 import { GRACE } from "./written/grace.ts";
 import { ADESTE } from "./written/adeste.ts";
 import { WELLERMAN } from "./written/wellerman.ts";
+import { EKLA_CHALO } from "./written/ekla.ts";
+import { DANNY } from "./written/danny.ts";
 
 export interface Song {
   id: string;
@@ -277,10 +279,12 @@ export const SONGS: Song[] = [
       },
     ],
   },
-  // Two songs written out whole, each with its own band and captions (written/).
+  // Songs written out whole, each with its own band and captions (written/).
   ANANDALOKE,
   FREUDE,
   WELLERMAN,
+  EKLA_CHALO,
+  DANNY,
 ];
 
 export const songById = (id: string): Song | undefined => SONGS.find((s) => s.id === id);
