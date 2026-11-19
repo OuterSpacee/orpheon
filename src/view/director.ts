@@ -291,7 +291,7 @@ export function planShots(music: Music, seed: number, strength = 0.7): Plan {
       options.push(["close", [one], 2], ["profile", [one], 2], ["arc", [one], 1.6], ["push", [one], 0.4]);
       if (c.energy < 0.6 && c.b - c.a >= 4.5 && c.a - insideAt > 40) options.push(["inside", [one], 1.6]);
     } else if (c.who.length === 2) {
-      options.push(["two", pair, 3], ["profile", pair, 2], ["close", [one], 1], ["arc", pair, 1]);
+      options.push(["two", pair, 3], ["profile", facing(pair), 2], ["close", [one], 1], ["arc", pair, 1]);
     } else if (climax.has(c.a)) {
       options.push(["hero", [], 3], ["arc", [], 2], ["hero", [one], 1.5], ["close", [one], 1], ["two", pair, 0.8], ["wide", [], 0.8]);
     } else {
@@ -351,11 +351,16 @@ export function planShots(music: Music, seed: number, strength = 0.7): Plan {
 const pairOf = (who: number[]) => [who[0], who[1]];
 /** The voice first, then the others. */
 const ordered = (who: number[], first: number) => [first, ...who.filter((h) => h !== first)];
-/** A voice and the one beside it that also sings (the next along), for a profile facing it. */
+/**
+ * A voice and the one it faces, for a profile: the heads face stage right, and a row stands in the
+ * cast's order, so it is the nearest that also sings further along; none there, the voice alone.
+ */
 function withNeighbour(h: number, who: number[]): number[] {
-  const others = who.filter((x) => x !== h).sort((a, b) => Math.abs(a - h) - Math.abs(b - h) || b - a);
-  return others.length ? [h, others[0]] : [h];
+  const along = who.filter((x) => x > h).sort((a, b) => a - b);
+  return along.length ? [h, along[0]] : [h];
 }
+/** Two voices in a profile: the one further left first, facing the other. */
+const facing = (pair: number[]) => [...pair].sort((a, b) => a - b);
 
 // ── the camera through a shot ──
 
