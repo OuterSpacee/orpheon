@@ -256,7 +256,7 @@ export function tiara(m: Maker): void {
   const tall = (f: number) => 0.5 + 3.1 * Math.cos(f * 1.1) ** 8;
   const look: Look = { glint: 0.7, crease: 9, size: 0.6 };
   // The band, doubled.
-  for (const h of [0, 0.32]) tube(m, Array.from({ length: 121 }, (_, i) => point(-SPAN + (2 * SPAN * i) / 120, h)), 0.06, 500, { crease: 7, glint: 0.4 });
+  for (const h of [0, 0.32]) tube(m, Array.from({ length: 121 }, (_, i) => point(-SPAN + (2 * SPAN * i) / 120, h)), 0.06, 260, { crease: 5, glint: 0.4 });
   // Arches between the rays, each as tall as the tiara is there.
   const RAYS = 13;
   for (let k = 0; k < RAYS; k++) {

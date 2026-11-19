@@ -42,7 +42,7 @@ export const ITEM_STYLE: Record<ItemId, ItemStyle> = {
   studs: { tint: ICE, accent: ICE, vivid: [0.8, 0.95, 1.0], vividAccent: [0.8, 0.95, 1.0], gain: 3.0, edge: 0.1 },
   hoops: { tint: SILVER, accent: SILVER, vivid: [0.92, 0.93, 1.0], vividAccent: [0.92, 0.93, 1.0], gain: 2.2, edge: 0.15 },
   jhumkas: { tint: SILVER, accent: PEARL, vivid: [0.92, 0.93, 1.0], vividAccent: [1.0, 0.45, 0.55], gain: 2.2, edge: 0.2 },
-  nath: { tint: SILVER, accent: LAVENDER, vivid: [0.95, 0.95, 1.0], vividAccent: [1.0, 0.3, 0.45], gain: 4.0, edge: 0.15 },
+  nath: { tint: SILVER, accent: LAVENDER, vivid: [0.95, 0.95, 1.0], vividAccent: [1.0, 0.3, 0.45], gain: 2.8, edge: 0.15 },
   tikka: { tint: SILVER, accent: LAVENDER, vivid: [0.95, 0.95, 1.0], vividAccent: [1.0, 0.28, 0.4], gain: 3.0, edge: 0.15 },
   bindi: { tint: LAVENDER, accent: LAVENDER, vivid: [1.0, 0.2, 0.32], vividAccent: [1.0, 0.2, 0.32], gain: 2.6, edge: 0.05 },
   pearls: { tint: PEARL, accent: [1.0, 1.0, 1.0], vivid: [1.0, 0.95, 0.96], vividAccent: [1.0, 1.0, 1.0], gain: 2.8, edge: 0.3 },
