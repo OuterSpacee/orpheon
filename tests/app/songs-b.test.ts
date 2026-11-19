@@ -1,4 +1,4 @@
-// Ekla chalo re, as arranged for Orpheon (src/app/written/ekla.ts): every
+// Ekla chalo re and Danny boy, as arranged for Orpheon (src/app/written/ekla.ts, danny.ts): every
 // voice in its range, no voice under the one below it, no parallel fifths or octaves between two
 // voices moving together (across a rest nothing moves together), every voice's words one to a
 // note, sung without losing a syllable; staged, with a band and captions; the tune as notated.
@@ -16,7 +16,7 @@ beforeAll(async () => {
   await ready("ipa");
 });
 
-const IDS = ["ekla"];
+const IDS = ["ekla", "danny"];
 const RANGE: Record<string, [number, number]> = { Soprano: [60, 81], Alto: [55, 74], Tenor: [48, 69], Bass: [40, 64] };
 const VOWELS = new Set(["i", "y", "ɨ", "ɯ", "u", "ɪ", "ʊ", "e", "ø", "o", "ə", "ɛ", "œ", "ɜ", "ʌ", "ɔ", "æ", "a", "ɑ", "ɒ", "ɚ"]);
 const state = (patch: Partial<State>): State => ({ ...INITIAL, mode: "sing", ...patch });
@@ -46,6 +46,7 @@ function faults(id: string): string[] {
 
 /** Song beats where a voice sounds, as [from, to) spans. */
 const sounding = (notes: string): [number, number][] => readTune(notes).notes.map((n) => [n.beat, n.beat + n.beats]);
+const silentIn = (notes: string, from: number, to: number) => sounding(notes).every(([a, b]) => b <= from || a >= to);
 
 describe("the songs as arranged", () => {
   for (const id of IDS) {
@@ -88,7 +89,7 @@ describe("the songs as arranged", () => {
       expect(firsts.filter((b) => b === 0).length).toBe(1);
       expect(song.band?.instruments.length).toBeGreaterThanOrEqual(4);
       expect(song.captions!.length).toBeGreaterThan(8);
-      // in Bengali each line has its meaning under it
+      // in Bengali each line has its meaning under it; Danny boy is in English already
       for (const c of song.captions!) expect(c.en.length > 5).toBe(song.lang === "ipa");
       const lu = lineup(state({ song: id }))!;
       expect(lu.band.map((p) => p.instrument)).toEqual(song.band!.instruments);
@@ -122,5 +123,18 @@ describe("the tunes as notated", () => {
     expect(sounding(bass)[0][0]).toBe(30);
     expect(sounding(soprano)[0][0]).toBe(62);
     expect(sounding(alto)[0][0]).toBe(62);
+  });
+
+  test("Danny boy: the Londonderry air from its upbeat, the tenor alone, the choir from “But come ye back”", () => {
+    const song = songById("danny")!;
+    // Oh Dan-ny boy, the pipes, the pipes are
+    expect(readTune(song.tune).notes.slice(0, 9).map((n) => n.midi)).toEqual([62, 63, 65, 67, 65, 67, 72, 70, 67]);
+    const [soprano, alto, tenor, bass] = song.voices!.map((v) => v.notes!);
+    expect(sounding(tenor)[0][0]).toBe(0);
+    for (const v of [soprano, alto, bass]) expect(sounding(v)[0][0]).toBe(32);
+    // the women alone for the second verse's first half
+    expect(silentIn(tenor, 64, 95.5) && silentIn(bass, 64, 95.5)).toBe(true);
+    // the top of the tune, "here", is the climax's highest note
+    expect(Math.max(...readTune(soprano).notes.map((n) => n.midi))).toBe(79);
   });
 });
