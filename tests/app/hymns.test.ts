@@ -36,7 +36,7 @@ function faults(id: string): string[] {
 }
 
 describe("the hymns as arranged", () => {
-  for (const id of ["grace", "adeste"]) {
+  for (const id of ["grace", "adeste", "wellerman"]) {
     test(`${id}: voiced cleanly`, () => {
       expect(faults(id)).toEqual([]);
     });
@@ -49,7 +49,7 @@ describe("the hymns as arranged", () => {
     });
   }
   test("they are staged: one voice first, everyone by the end", () => {
-    for (const id of ["grace", "adeste"]) {
+    for (const id of ["grace", "adeste", "wellerman"]) {
       const song = songById(id)!;
       const firsts = song.voices!.map((v) => readTune(v.notes!).notes[0].beat);
       expect(Math.min(...firsts)).toBe(0);
