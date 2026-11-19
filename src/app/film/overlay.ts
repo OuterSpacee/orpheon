@@ -13,6 +13,9 @@ import type { SongCaption } from "../state.ts";
 import { Timeline } from "./timeline.ts";
 import type { Lane, Syllable } from "./timeline.ts";
 
+/** Letters of the scripts written right to left: Hebrew, Arabic and its supplements. */
+const RIGHT_TO_LEFT = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
+
 /** Everything the overlay shows at one instant. */
 export interface Moment {
   title: string;
@@ -310,13 +313,17 @@ export function drawFrame(
       widths = ly.pieces.map((p) => ctx.measureText(p).width);
       total = widths.reduce((a, b) => a + b, 0);
     }
-    let x = c.x + (c.w - total) / 2;
+    // A line in a script written right to left (Arabic, Hebrew) is laid from the right: its first
+    // piece rightmost. Each piece is drawn whole, so a word's letters keep their joined shapes.
+    const rtl = RIGHT_TO_LEFT.test(ly.pieces.join(""));
+    let x = rtl ? c.x + (c.w + total) / 2 : c.x + (c.w - total) / 2;
     ly.pieces.forEach((piece, i) => {
       const now = i === ly.sung - 1;
       const done = i < ly.sung - 1;
       const color = now ? rgb(mix(INK, WARM, 0.4 + 0.6 * m.level)) : done ? rgb(INK) : rgb(INK_2);
-      lit(ctx, piece, x, c.y, color, 14 * u, now ? (10 + 26 * m.level) * u : 0, rgb(WARM, 0.55));
-      x += widths[i];
+      if (rtl) x -= widths[i];
+      lit(ctx, rtl ? piece.trim() : piece, x, c.y, color, 14 * u, now ? (10 + 26 * m.level) * u : 0, rgb(WARM, 0.55));
+      if (!rtl) x += widths[i];
     });
     ctx.textAlign = "center";
     ctx.font = `300 ${c.enSize}px ${SANS}`;

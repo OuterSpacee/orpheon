@@ -110,7 +110,8 @@ describe("the built-in songs", () => {
         // (tests/app/hymns.test.ts, songs-a.test.ts, songs-b.test.ts); its tune may span an octave
         // and a fifth, as the Londonderry air does ("Funiculì, funiculà" and Verdi's canzone span less)
         expect(Math.max(...pitches) - Math.min(...pitches)).toBeLessThanOrEqual(song.captions ? 19 : 14);
-        for (let i = 1; i < notes.length; i++) expect(Math.abs(notes[i].midi - notes[i - 1].midi)).toBeLessThanOrEqual(12);
+        // (a song written out whole may leap a minor ninth, as the muwashshah does from "lawʿati" up to "illa")
+        for (let i = 1; i < notes.length; i++) expect(Math.abs(notes[i].midi - notes[i - 1].midi)).toBeLessThanOrEqual(song.captions ? 13 : 12);
       });
 
       test("its notes come out in seconds, in order, after the lead-in", () => {
