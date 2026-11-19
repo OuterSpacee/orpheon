@@ -11,8 +11,23 @@ import type { State } from "../state.ts";
 import { castOf } from "./stage.ts";
 import { action, choice, section, toggle } from "./controls.ts";
 
-/** The singers that can be dressed now: every head on the stage, by its place in the line-up. */
-export function dressable(s: State): { who: number; name: string }[] {
+/** The names of the line-up the Sing mode has planned (its Singers list), and who to tell when it changes. */
+let planned: readonly string[] = [];
+let replan = () => {};
+
+/** The Sing mode says who will sing, so they can be dressed before the song starts. */
+export function lineupToDress(names: readonly string[]): void {
+  if (names.join("|") === planned.join("|")) return;
+  planned = [...names];
+  replan();
+}
+
+/**
+ * The singers that can be dressed now: every head on the stage, by its place in the line-up; and
+ * in Sing, before a choir starts, the singers it will have (`lines`, the Singers list).
+ */
+export function dressable(s: State, lines: readonly string[] = planned): { who: number; name: string }[] {
+  if (s.mode === "sing" && !s.playing && s.focus < 0 && lines.length > 1) return lines.map((name, who) => ({ who, name: name || `Voice ${who + 1}` }));
   const seen = new Set<number>();
   return castOf(s).flatMap((x, i) => {
     if (seen.has(x.who)) return [];
@@ -118,6 +133,7 @@ export function mountDress(app: App): HTMLElement {
     none.disabled = !Object.values(s.outfits).some((x) => !isBare(x));
   }
   store.on(["outfits", "playing", "mode", "voices", "focus"], paint);
+  replan = () => paint(store.get());
   body.root.classList.add("dress");
   return body.root;
 }

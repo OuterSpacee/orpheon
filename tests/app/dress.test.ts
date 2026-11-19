@@ -51,6 +51,12 @@ describe("each singer's own outfit", () => {
     expect(alone[0].who).toBe(1);
   });
 
+  test("in Sing, before a choir starts, the singers it will have can be dressed", () => {
+    const s = state({ mode: "sing" });
+    expect(dressable(s, ["Soprano", "Alto", "Tenor"]).map((x) => x.who)).toEqual([0, 1, 2]);
+    expect(dressable(s, ["Soprano"]).map((x) => x.who)).toEqual([0]);
+  });
+
   test("Touch's voices and the Instrument's are dressed by their seat; one head is the first singer", () => {
     expect(castOf(state({ mode: "touch", voices: 3 })).map((x) => x.who)).toEqual([0, 1, 2]);
     expect(castOf(state({ mode: "instrument" })).map((x) => x.who)).toEqual([0, 1, 2, 3, 4, 5]);

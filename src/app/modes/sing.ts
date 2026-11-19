@@ -23,6 +23,7 @@ import { mountBand } from "../ui/band.ts";
 import { action, choice, section, slider, toggle } from "../ui/controls.ts";
 import { mountRoll } from "../ui/roll.ts";
 import { mountSingers } from "../ui/singers.ts";
+import { lineupToDress } from "../ui/dress.ts";
 
 /** The voices a song can be sung with: its own, or any Instrument preset. */
 const VOICES = [{ id: "own", name: "Its own voice" }, ...PRESETS.map((p) => ({ id: p.id, name: p.name }))];
@@ -293,6 +294,7 @@ export function mountSing(app: App): ModeParts {
     singersSection.root.hidden = lines.length < 2;
     singersSection.note(lines.length > 1 ? `${lines.length}` : "");
     singers.show(lines);
+    lineupToDress(lines.map((l) => l.name));
     band.show(planned);
     bandSection.note(band.summary());
   }
