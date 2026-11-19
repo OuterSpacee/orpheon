@@ -23,6 +23,9 @@ import { N } from "./tract.ts";
 import { Motion, type HeadInput, type MotionSpec } from "./motion.ts";
 import { Eyes } from "./eyes.ts";
 import { TELEMETRY } from "../contract.ts";
+import { ITEM_STYLE, SHADE, coverOf } from "./decor/items.ts";
+import { makeWornAside } from "./decor/aside.ts";
+import { BARE, itemsOf, type ItemId, type Outfit } from "./decor/outfit.ts";
 
 /** What the view offers beyond the contract, for the lab page and for measuring. */
 export interface AnatomyViewLab extends AnatomyView {
@@ -39,7 +42,7 @@ export interface AnatomyViewLab extends AnatomyView {
    * drift into their places, newcomers rise in, leavers fade. Layers, solo, cut and explode
    * apply to every head. In a choir a silent singer rests dim and lights up as it sings.
    */
-  cast(singers: { name: string; body: Body }[]): void;
+  cast(singers: Singer[]): void;
   /** Hand over one singer's newest telemetry (frame() is singer 0's). */
   frameOf(index: number, telemetry: Float32Array): void;
   /**
@@ -72,7 +75,7 @@ export interface AnatomyViewLab extends AnatomyView {
    * bottom insets); the page's own room() calls are kept for when the recording frame goes.
    * `singers`, if given, stand on the stage instead of the page's cast until then. null ends it.
    */
-  film(frame: { width: number; height: number; room: readonly number[]; singers?: { name: string; body: Body }[] } | null): void;
+  film(frame: { width: number; height: number; room: readonly number[]; singers?: Singer[] } | null): void;
   /** Called after every frame is drawn, while the picture is still in the canvas to be copied. */
   onDrawn: (() => void) | null;
   /** How the heads and the camera move (the video's motion); null keeps them still. */
@@ -86,8 +89,17 @@ export interface AnatomyViewLab extends AnatomyView {
   colour(amount: number): void;
   /** Hold every singer's lids at this much closed (0 open .. 1 shut, for pictures); null lets them blink. */
   lids(amount: number | null): void;
+  /** Show what the singers wear (decor/): 0 hidden .. 1 shown, as a part of the body is. */
+  decorations(amount: number): void;
 }
 export { DENSITY_USUAL };
+
+/** One singer on the stage: what to call it, its body, and what it wears (nothing, if left out). */
+export interface Singer {
+  name: string;
+  body: Body;
+  outfit?: Outfit;
+}
 
 const ORDER = LAYERS.map((l) => l.id);
 const SKIN = ORDER.indexOf("skin");
@@ -141,9 +153,8 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
   let total = 0;
   let allThere = () => {};
   const ready = new Promise<void>((resolve) => (allThere = resolve));
-  const stopMaking = makeBodyAside((part) => {
-    if (gone) return;
-    const i = ORDER.indexOf(part.id);
+  /** A part's particles on the card. */
+  function upload(part: Part<string>): WebGLVertexArrayObject {
     const array = gl.createVertexArray()!;
     gl.bindVertexArray(array);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
@@ -157,6 +168,12 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
     gl.enableVertexAttribArray(2);
     gl.vertexAttribPointer(2, 4, gl.UNSIGNED_BYTE, false, BYTES, 0);
     gl.bindVertexArray(null);
+    return array;
+  }
+  const stopMaking = makeBodyAside((part) => {
+    if (gone) return;
+    const i = ORDER.indexOf(part.id);
+    const array = upload(part);
     parts[i] = part;
     arrays[i] = array;
     shown[i] = 0;
@@ -164,12 +181,27 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
     if (parts.every((p) => p)) allThere();
   });
 
+  // ── what the singers wear: each thing made (in a worker) the first time someone puts it on ──
+  const worn = new Map<ItemId, { part: Part<ItemId>; array: WebGLVertexArrayObject }>();
+  const wornAside = makeWornAside((part) => {
+    if (gone || worn.has(part.id)) return;
+    worn.set(part.id, { part, array: upload(part) });
+    total += part.count;
+  });
+  /** Ask for whatever someone on the stage wears that is not made yet. */
+  function makeWorn(): void {
+    for (const seat of seats) {
+      if (!seat.wanted && seat.here < 0.002) continue;
+      for (const id of seat.items) if (!worn.has(id)) wornAside.ask(id);
+    }
+  }
+
   // ── the programs ──
   const dust = program(gl, DUST_VERTEX, DUST_FRAGMENT);
   const du = uniforms(gl, dust, [
     "u_body", "u_view", "u_lens", "u_eye", "u_pixels", "u_far", "u_time", "u_flicker", "u_tint", "u_shown", "u_edge", "u_apart",
     "u_cut", "u_gain", "u_jaw", "u_lip", "u_lift", "u_fold", "u_air", "u_lung", "u_sound", "u_mouth", "u_nose",
-    "u_row", "u_place", "u_turn", "u_lit", "u_bust", "u_bend", "u_colour", "u_grain", "u_eyes",
+    "u_row", "u_place", "u_turn", "u_lit", "u_bust", "u_bend", "u_colour", "u_grain", "u_eyes", "u_accent", "u_cover",
   ] as const);
   const shrink = program(gl, SCREEN_VERTEX, SHRINK_FRAGMENT);
   const su = uniforms(gl, shrink, ["u_from", "u_step"] as const);
@@ -196,7 +228,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
   // ── what the page has asked for, and where the easing has got to ──
   // The singers: a place on the stage and a body moved by its own telemetry for each. The first
   // is there from the start, alone: the solo head.
-  const seats = Array.from({ length: CAST_MAX }, (_, i) => ({ ...makeSeat(), moving: makeMoving(), eyes: new Eyes(i) }));
+  const seats = Array.from({ length: CAST_MAX }, (_, i) => ({ ...makeSeat(), moving: makeMoving(), eyes: new Eyes(i), outfit: BARE as Outfit, items: [] as ItemId[] }));
   /** Lids held for a picture, or null. */
   let lidsHeld: number | null = null;
   // The heads' own movement and the camera's (still, unless the video asks).
@@ -226,8 +258,10 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
   const eye = makeEye();
   const pace = makePace();
   const calm = matchMedia("(prefers-reduced-motion: reduce)");
-  const wanted = { amount: ORDER.map(() => 1), solo: -1, explode: 0, cut: 0, yaw: 0, pitch: 0, zoom: 1, room: [0, 0, 0, 0] };
+  const wanted = { amount: ORDER.map(() => 1), solo: -1, explode: 0, cut: 0, yaw: 0, pitch: 0, zoom: 1, room: [0, 0, 0, 0], dressed: 1 };
   const shown = ORDER.map(() => 0);
+  /** How much the decorations show, eased (they show and ghost with the skin). */
+  let dressed = 0;
   const head = new Float32Array(3);
   const spot = new Float32Array(3);
   // What the framing fits this frame: points of the scene.
@@ -254,7 +288,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
   let fixed: { width: number; height: number } | null = null;
   /** What the page asked for, kept while a recording frame stands in for it. */
   const pageRoom = [0, 0, 0, 0];
-  let pageCast: { name: string; body: Body }[] = [];
+  let pageCast: Singer[] = [];
   let filmCast = false;
   /** The canvas's size in the units room() and spot() use: CSS pixels, or the recording's pixels. */
   const wideOf = () => (fixed ? fixed.width : Math.max(1, canvas.clientWidth));
@@ -326,6 +360,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
       shown[i] += (goal - shown[i]) * toward(0.22);
     }
     explode += (wanted.explode - explode) * toward(0.45);
+    dressed += (wanted.dressed * (wanted.solo < 0 || wanted.solo === SKIN ? 1 : 0.04) - dressed) * toward(0.22);
     look.density += (look.wantDensity - look.density) * toward(0.25);
     look.colour += (look.wantColour - look.colour) * toward(0.3);
     cut += (wanted.cut - cut) * toward(0.4);
@@ -351,6 +386,17 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
       // on the mouth, the nose and the throat, which are what the section is for.
       const top = HEAD_BOX[4] - CUT_CLOSER[1] * cut;
       const back = HEAD_BOX[0] + CUT_CLOSER[0] * cut;
+      // What the singers wear first (a top hat must not be cut off), then the head itself.
+      if (wanted.dressed > 0.5 && wanted.solo < 0) {
+        const seen = new Set<ItemId>();
+        for (const seat of seats) if (seat.wanted) for (const id of seat.items) seen.add(id);
+        for (const id of seen) {
+          const m = worn.get(id)?.part.marks;
+          if (!m) continue;
+          const every = 3 * Math.max(1, Math.floor(m.length / 3 / 24));
+          for (let k = 0; k < m.length; k += every) put(Math.max(back, m[k]), m[k + 1], m[k + 2]);
+        }
+      }
       const marks = parts[SKIN]?.marks;
       if (marks) {
         for (let k = 0; k < marks.length; k += 3) {
@@ -656,11 +702,16 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
       gl!.uniform1f(du.u_nose, moving.noseOpen);
       const eyes = seat.eyes;
       eyes.step(dt, calm.matches);
-      gl!.uniform4f(du.u_eyes, lidsHeld ?? eyes.closed, eyes.turn, eyes.raise, 0);
+      const shaded = dressed > 0.003 && seat.outfit.eyes === "shades" && worn.has("shades") ? SHADE * Math.min(1, dressed) : 0;
+      gl!.uniform4f(du.u_eyes, lidsHeld ?? eyes.closed, eyes.turn, eyes.raise, shaded);
+      // The skin under this singer's hat, if it wears one that covers it.
+      const cover = dressed > 0.003 ? coverOf(seat.outfit.head) : null;
+      const covering = cover && worn.has(seat.outfit.head!) ? cover[3] * Math.min(1, dressed) : 0;
       for (let again = 0; again < strain; again++)
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
         if (!part || shown[i] < 0.003) continue;
+        gl!.uniform4f(du.u_cover, cover?.[0] ?? 0, cover?.[1] ?? 1, cover?.[2] ?? 0, i === SKIN ? covering : i === BONE ? covering * 0.6 : 0);
         const style = STYLE[part.id];
         const density = pace.density * share * asked;
         const count = Math.max(1, Math.floor(part.count * density));
@@ -674,6 +725,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
         gl!.drawArrays(gl!.POINTS, 0, count);
         if (again === 0) drawn += count;
       }
+      if (dressed > 0.003) drawn += dress(seat.items, asked, brighter, strain);
     }
     gl!.disable(gl!.BLEND);
 
@@ -704,17 +756,47 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
     view.onDrawn?.();
   }
 
+  /**
+   * Draw what one singer wears, after its body, with that singer's uniforms already set. Small
+   * things (a stud, a bindi) are drawn whole however thin the cloud, so they never vanish. Returns
+   * how many particles were drawn.
+   */
+  function dress(items: readonly ItemId[], asked: number, brighter: number, times: number): number {
+    let count = 0;
+    gl!.uniform4f(du.u_cover, 0, 1, 0, 0);
+    const style = STYLE.skin;
+    gl!.uniform1f(du.u_shown, dressed);
+    gl!.uniform3f(du.u_apart, style.apart[0] * explode, style.apart[1] * explode, style.apart[2] * explode);
+    const c = look.colour;
+    for (const id of items) {
+      const it = worn.get(id);
+      if (!it) continue;
+      const s = ITEM_STYLE[id];
+      const made = it.part.count;
+      const n = Math.min(made, Math.max(300, Math.floor(made * pace.density * share * asked)));
+      gl!.uniform3f(du.u_tint, s.tint[0] + (s.vivid[0] - s.tint[0]) * c, s.tint[1] + (s.vivid[1] - s.tint[1]) * c, s.tint[2] + (s.vivid[2] - s.tint[2]) * c);
+      gl!.uniform3f(du.u_accent, s.accent[0] + (s.vividAccent[0] - s.accent[0]) * c, s.accent[1] + (s.vividAccent[1] - s.accent[1]) * c, s.accent[2] + (s.vividAccent[2] - s.accent[2]) * c);
+      gl!.uniform1f(du.u_edge, s.edge);
+      gl!.uniform1f(du.u_gain, (s.gain * brighter) / ((n / made) * BUILT));
+      gl!.bindVertexArray(it.array);
+      for (let again = 0; again < times; again++) gl!.drawArrays(gl!.POINTS, 0, n);
+      count += n;
+    }
+    return count;
+  }
+
   function tick(ms: number): void {
     timer = 0;
     if (gone) return;
     const dt = last ? Math.min(0.1, (ms - last) / 1000) : 0;
     last = ms;
     if (dt > 0) pace.saw(dt * 1000);
+    makeWorn();
     draw(dt);
     if (!still) timer = requestAnimationFrame(tick);
   }
   /** Put these singers on the stage: the places they ask for are wanted, the rest are let go. */
-  function seat(singers: { name: string; body: Body }[]): void {
+  function seat(singers: Singer[]): void {
     const n = Math.max(1, Math.min(CAST_MAX, singers.length));
     seats.forEach((place, i) => {
       place.wanted = i < n;
@@ -722,9 +804,15 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
         place.name = singers[i].name;
         place.body = { tract: singers[i].body.tract, folds: singers[i].body.folds };
       }
+      // What it wears comes with it (a place no one stands in keeps its clothes as it fades out).
+      if (i < n) {
+        place.outfit = singers[i]?.outfit ?? BARE;
+        place.items = itemsOf(place.outfit);
+      }
     });
     castCount = n;
     if (focused >= n) focused = 0;
+    makeWorn();
     wake();
   }
 
@@ -741,8 +829,8 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
     frameOf(index: number, telemetry: Float32Array) {
       seats[index]?.moving.take(telemetry);
     },
-    cast(singers: { name: string; body: Body }[]) {
-      pageCast = singers.map((s) => ({ name: s.name, body: { tract: s.body.tract, folds: s.body.folds } }));
+    cast(singers: Singer[]) {
+      pageCast = singers.map((s) => ({ name: s.name, body: { tract: s.body.tract, folds: s.body.folds }, outfit: s.outfit }));
       if (!filmCast) seat(singers);
     },
     motion(spec) {
@@ -756,6 +844,9 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
     },
     lids(amount: number | null) {
       lidsHeld = amount === null ? null : Math.min(1, Math.max(0, amount));
+    },
+    decorations(amount: number) {
+      wanted.dressed = Math.min(1, Math.max(0, amount));
     },
     film(frame) {
       fixed = frame ? { width: Math.max(1, Math.round(frame.width)), height: Math.max(1, Math.round(frame.height)) } : null;
@@ -812,6 +903,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
     dispose() {
       gone = true;
       stopMaking();
+      wornAside.stop();
       cancelAnimationFrame(timer);
       pointer.dispose();
       canvas.removeEventListener("webglcontextlost", lost);
@@ -820,6 +912,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
     measure(frames: number, times = 1) {
       const pixel = new Uint8Array(4);
       strain = times;
+      makeWorn();
       draw(0);
       gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
       const start = performance.now();
@@ -833,6 +926,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
     stats: () => ({ particles: total, drawn, width: canvas.width, height: canvas.height, frame: pace.frame, density: pace.density, card, singers: castCount }),
     ready,
     advance(dt: number) {
+      makeWorn();
       draw(dt);
     },
     pin(step: number) {
@@ -854,7 +948,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
 function blank(): AnatomyViewLab {
   return {
     frame() {}, layer() {}, solo() {}, explode() {}, cut() {}, look() {}, room() {}, onGrab: null, onHover: null, dispose() {},
-    cast() {}, frameOf() {}, spot: () => null, onSinger: null, film() {}, onDrawn: null, motion() {}, density() {}, colour() {}, lids() {},
+    cast() {}, frameOf() {}, spot: () => null, onSinger: null, film() {}, onDrawn: null, motion() {}, density() {}, colour() {}, lids() {}, decorations() {},
     measure: () => 0,
     advance() {},
     pin() {},

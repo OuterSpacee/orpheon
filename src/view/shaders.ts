@@ -52,7 +52,9 @@ uniform float u_lit;
 uniform float u_bust;
 uniform float u_colour;      // 0 cold starlight .. 1 every part its own hue, shimmering
 uniform float u_grain;       // the size of a mote: larger when the cloud is thin, finer when dense
-uniform vec4 u_eyes;         // how closed the lids are (0 open .. 1 shut), where the eyes look (turn, raise), -
+uniform vec4 u_eyes;         // how closed the lids are (0 open .. 1 shut), where the eyes look (turn, raise), how shaded by sunglasses
+uniform vec3 u_accent;       // a decoration's second colour (its band, its stones)
+uniform vec4 u_cover;        // the skin a hat covers: above the line n·(x, y) = d (n is .xy, d .z), dimmed by .w
 
 out vec4 v_light;
 
@@ -116,6 +118,8 @@ void main() {
   vec3 runs = vec3(0.0);
   float endOn = 0.0;
   float iris = 0.0;       // 1 where this is the iris of an eye, which has its own colour
+  float accent = 0.0;     // a decoration's share of its accent colour
+  float glint = 0.0;      // how much it catches the light like a stone
 
   if (kind == ${KIND.rigid}) {
     // A sharp bend in the surface shows from any side, and brighter.
@@ -139,7 +143,7 @@ void main() {
       float h = eyeOpening(u);
       float top = h - (2.0 * h + 0.1) * closed;
       float open = step(0.25, q.x) * smoothstep(-h - 0.05, -h + 0.05, w) * (1.0 - smoothstep(top - 0.05, top + 0.05, w));
-      glow *= (0.12 + 1.13 * open) * mix(1.5, 3.2, w2);
+      glow *= (0.12 + 1.13 * open) * mix(1.5, 3.2, w2) * (1.0 - u_eyes.w);
       edge = 0.15;
       iris = w2;
       if (w1 > 0.5) {
@@ -157,6 +161,8 @@ void main() {
       edge *= 0.3;
       glow *= 1.4;
     } else {
+      // Under a hat the skin is dimmed, so the hat reads as worn on the head and not as a second outline.
+      if (u_cover.w > 0.0) glow *= 1.0 - u_cover.w * smoothstep(-0.8, 0.6, dot(u_cover.xy, p.xy) - u_cover.z);
       // The jaw, then the lips on top of it.
       vec2 q = p.xy - u_jaw.zw;
       vec2 swung = u_jaw.zw + vec2(q.x * u_jaw.x + q.y * u_jaw.y, q.y * u_jaw.x - q.x * u_jaw.y);
@@ -167,6 +173,14 @@ void main() {
       p.z *= mix(1.0, u_lip.y, w2);
       p.x += u_lip.z * w2 * (0.35 + 0.65 * middle);
     }
+  } else if (kind == ${KIND.worn}) {
+    // Something worn: it rides with the head. Its rims and edges are lines of light, as the
+    // creases of the face are; its stones glint.
+    float crease = floor(mod(tag, 64.0) / 4.0) / 15.0;
+    edge *= 1.0 - 0.8 * crease;
+    glow *= 1.0 + 1.8 * crease;
+    accent = w1;
+    glint = w2;
   } else if (kind == ${KIND.tongue}) {
     float s = p.x;
     vec4 under = body(s, 2.0);
@@ -351,6 +365,11 @@ void main() {
   // A slow twinkle, and here and there a mote that catches the light like a star.
   float twinkle = hash(seed * 7.0 + floor(u_time * 0.6 + seed * 9.0));
   glow *= 0.8 + 0.4 * twinkle;
+  // A stone or a pearl: more of its motes catch the light, and they flash as the head moves.
+  if (glint > 0.0) {
+    float flash = smoothstep(0.55, 1.0, hash(seed * 11.0 + floor(u_time * 1.3 + seed * 5.0)));
+    glow *= 1.0 + glint * (0.4 + 2.2 * flash * flash) * (0.5 + rim);
+  }
   if (hash(seed * 3.7) > 0.988 && kind != ${KIND.flow}) {
     size *= 1.7;
     glow *= 1.3 + 1.6 * smoothstep(0.6, 1.0, twinkle);
@@ -367,6 +386,7 @@ void main() {
     float a = p.y * 0.12 + p.x * 0.09 + seed * 1.5 + u_time * 0.15;
     tint *= 1.0 + 0.28 * u_colour * vec3(sin(a), sin(a + 2.1), sin(a + 4.2));
   }
+  tint = mix(tint, u_accent * (tint / max(u_tint, vec3(1e-3))), accent);
   // The iris: sea-blue in the cold look, a deeper blue-green in colour.
   tint = mix(tint, mix(vec3(0.55, 0.86, 1.0), vec3(0.25, 0.75, 0.95), u_colour), iris);
   vec3 colour = heat(tint, clamp(warm, 0.0, 1.0));

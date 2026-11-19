@@ -37,13 +37,19 @@ export const KIND = {
   lung: 8,
   /** Sound in the open air. (a, b, c): the direction it leaves in. nx: where along its way it starts. ny: 0 from the mouth, ±1 from a nostril. */
   sound: 9,
+  /**
+   * Something worn on the head (decor/): at rest at (a, b, c), moving with the head and nothing
+   * else. w1: how much it takes its accent colour (0 its own .. 1 the accent). w2: how much it
+   * glints like a gem or a pearl. tag: 4 × (0..15) for a rim or an edge drawn as a line of light.
+   */
+  worn: 10,
 } as const;
 
 export const FLOATS = 8;
 export const BYTES = 4;
 
-export interface Part {
-  id: LayerId;
+export interface Part<Id extends string = LayerId> {
+  id: Id;
   count: number;
   floats: Float32Array;
   bytes: Uint8Array;
@@ -51,14 +57,14 @@ export interface Part {
   marks: Float32Array;
 }
 
-export class Dust {
+export class Dust<Id extends string = LayerId> {
   private floats: Float32Array;
   private bytes: Uint8Array;
   private marks: number[] = [];
   count = 0;
 
   constructor(
-    private id: LayerId,
+    private id: Id,
     private random: () => number,
     room = 4096,
   ) {
@@ -106,7 +112,7 @@ export class Dust {
    * The finished part, its particles in random order: drawing only the first half of them then
    * draws the same shape at half the density, which is how the view sheds load on a slow machine.
    */
-  finish(): Part {
+  finish(): Part<Id> {
     const n = this.count;
     const order = new Uint32Array(n);
     for (let i = 0; i < n; i++) order[i] = i;
