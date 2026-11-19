@@ -431,3 +431,65 @@
 .singer-row.unheard .singer-note {
   color: var(--ink-3);
 }
+
+/* ── what the singers wear ── */
+
+.dress {
+  margin-top: 14px;
+}
+
+.dress > .section-body {
+  padding-left: 4px;
+}
+
+.dress-jewels > .dial-name {
+  display: block;
+  padding: 5px 0 3px;
+}
+
+/* Whom to dress: the singers' names in a row, the chosen one underlined, as in the choir's list. */
+.dress-who {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 12px;
+  margin-bottom: 4px;
+}
+
+.dress-who[hidden] {
+  display: none;
+}
+
+/* The things for the head: two short columns, as the jewellery. */
+.dress .choice:not(.row) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 10px;
+}
+
+.dress-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 10px;
+}
+
+.dress-grid .toggle,
+.dress .option {
+  font-size: 13.5px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dress-actions {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 16px;
+  margin-top: 6px;
+}
+
+.dress-actions .action:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}

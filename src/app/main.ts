@@ -19,7 +19,7 @@ import { PAD_VOWELS, spotsFrom, vowelProbe } from "./scores.ts";
 import { INITIAL, MODES, lengthOf } from "./state.ts";
 import type { Mode, State } from "./state.ts";
 import { createStore } from "./store.ts";
-import { LOOK_KEY, lookKept } from "./look.ts";
+import { LOOK_KEY, lookKept, lookToKeep } from "./look.ts";
 import { createPlayer } from "./touch/player.ts";
 import type { Player } from "./touch/player.ts";
 import { mountBandStrip } from "./ui/band-strip.ts";
@@ -31,10 +31,10 @@ import { mountStage } from "./ui/stage.ts";
 import { mountTop } from "./ui/top.ts";
 
 const store = createStore<State>({ ...INITIAL, ...lookKept(), ...decodeLink(location.hash) });
-// How the body is drawn is this viewer's own taste: kept in this browser, not carried by links.
-store.on(["density", "colour"], (s) => {
+// How the body is drawn is this viewer's own taste: kept in this browser (the outfits also go in links).
+store.on(["density", "colour", "outfits"], (s) => {
   try {
-    localStorage.setItem(LOOK_KEY, JSON.stringify({ density: s.density, colour: s.colour }));
+    localStorage.setItem(LOOK_KEY, lookToKeep(s));
   } catch {
     // (private browsing, or storage refused: the page simply starts as usual next time)
   }

@@ -72,6 +72,21 @@ every few seconds, sometimes twice, and glance about between (`src/view/eyes.ts`
 on its own. This is the one movement not driven by the voice: a face that never blinks reads as
 dead.
 
+## Decorations
+
+Each singer can wear something (`src/view/decor/`): a crown, a tiara, marigolds, a turban, a top
+hat, a beanie, a Santa hat, a captain's cap; studs, hoops or jhumkas, a nath, a maang tikka, a
+bindi, pearls; round glasses or sunglasses. They are made of the same light as the body and
+layered over it: their light adds to the anatomy's, rims and edges are lines of light as the
+creases of the face are, and stones and pearls glint as the head moves. A hat that covers the head
+dims the skin under it, so it reads as worn and not as a second outline; nothing below the eyes
+is dimmed, and the airway stays as clear as ever. Sunglasses darken the eyes behind them.
+
+They keep to the cold family: silver, pearl, ice, lavender, sea. The warm gold is the sound's, so
+no crown is gold. With "Colour" up each takes its own hues (a red Santa hat, orange marigolds, a
+navy cap band, ruby stones), still never the gold. They are shown and hidden as a part is, and
+ghost with the rest when one part is shown alone.
+
 ## Motion
 
 Everything eases; nothing snaps or bounces. The cloud drifts slowly as if breathing. With

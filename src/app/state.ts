@@ -5,6 +5,7 @@ import type { Lang, NoteIn } from "../lang/index.ts";
 import type { Wakefulness } from "./audio/sound.ts";
 import { PRESETS } from "./instrument/presets.ts";
 import { DENSITY_USUAL } from "../view/layers.ts";
+import type { Wardrobe } from "../view/decor/outfit.ts";
 import type { Tone } from "./instrument/presets.ts";
 import { VOWEL_GUESS } from "./scores.ts";
 import type { VowelSpot } from "./scores.ts";
@@ -94,6 +95,10 @@ export interface State {
   density: number;
   /** 0 cold starlight .. 1 every part in its own colour. */
   colour: number;
+  /** What each singer wears, by its place in the line-up (0 the solo head); one left out wears nothing. */
+  outfits: Wardrobe;
+  /** The decorations shown, or hidden as a part of the body is. */
+  dressed: boolean;
 
   // Touch.
   /** The articulators as the sliders, the pad and the dragged body have left them. */
@@ -190,6 +195,8 @@ export const INITIAL: State = {
   explode: 0,
   density: DENSITY_USUAL,
   colour: 0,
+  outfits: {},
+  dressed: true,
 
   // The mouth starts open on "a".
   pose: { ...REST, tongueX: 0.39, tongueY: 0.29, jaw: 0.77, lips: 0.82, round: 0, velum: 0, vibrato: 20 },

@@ -21,9 +21,12 @@
 //   hud=0               no text
 //   density=0.67        how thick the cloud is (0.05..1); colour=1  every part its own colour
 //   lids=0.5            hold the eyelids this much closed (0 open .. 1 shut) instead of blinking
+//   dress=crown.hoops~~santa   what each singer wears (src/view/decor/outfit.ts), "~" between singers;
+//                       decor=0 hides it all
 import { BODIES, LAYERS, NOSE_POINTS, POSE, TELEMETRY as T, TELEMETRY_SIZE, TRACT_POINTS, type Body, type LayerId, type Pose } from "../src/contract.ts";
 import { createAnatomyView } from "../src/view/index.ts";
 import { createVoice } from "../src/voice/index.ts";
+import { wardrobeFromCode } from "../src/view/decor/outfit.ts";
 
 const RATE = 48000;
 const query = new URLSearchParams(location.search);
@@ -61,10 +64,12 @@ const castSize = Math.max(1, Math.min(6, number("cast", 1)));
 const quiet = new Set((query.get("quiet") ?? "").split(",").filter(Boolean).map(Number));
 const enter = number("enter", 0);
 const others = Array.from({ length: castSize - 1 }, (_, i) => ({ voice: createVoice(RATE, CHOIR[i + 1]), telemetry: new Float32Array(TELEMETRY_SIZE) }));
+const wardrobe = wardrobeFromCode(query.get("dress") ?? "");
 if (castSize > 1) {
   voice.setBody(CHOIR[0]);
-  view.cast(CHOIR.slice(0, castSize).map((body, i) => ({ name: CHOIR_NAMES[i], body })));
-}
+  view.cast(CHOIR.slice(0, castSize).map((body, i) => ({ name: CHOIR_NAMES[i], body, outfit: wardrobe[i] })));
+} else if (wardrobe[0]) view.cast([{ name: "", body: BODIES.tenor, outfit: wardrobe[0] }]);
+if (query.has("decor")) view.decorations(number("decor", 1));
 /** Aim choir singer i (1..) at its place in the loop: a little behind the one before, silent until it enters. */
 function aimOther(i: number): void {
   const v = others[i - 1].voice;

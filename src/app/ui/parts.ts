@@ -1,11 +1,13 @@
 // The left edge: the parts of the body. Click a name to show or hide the part, click its dot to
-// see it alone. Below them, how the body is seen: cut open, pulled apart, how thick its cloud is
-// and how colourful.
+// see it alone. Last in the list, what the singers wear, shown or hidden as a part is. Below
+// them, how the body is seen: cut open, pulled apart, how thick its cloud is and how colourful;
+// and what each singer wears (dress.ts).
 import { LAYERS } from "../../contract.ts";
 import type { LayerId } from "../../contract.ts";
 import type { App } from "../app.ts";
 import { el } from "../dom.ts";
 import { slider } from "./controls.ts";
+import { mountDress } from "./dress.ts";
 import type { Stage } from "./stage.ts";
 
 export function mountParts(app: App, stage: Stage): HTMLElement {
@@ -43,6 +45,16 @@ export function mountParts(app: App, stage: Stage): HTMLElement {
     list.append(row);
   }
 
+  // What the singers wear: not a part of the body, but shown and hidden as one. Its dot only marks it.
+  const dressName = el("button.part-name", { type: "button", "aria-description": "What the singers wear: hats, jewellery, glasses.", onclick: () => store.set({ dressed: !store.get().dressed }) }, "Decorations");
+  const dressRow = el("li.part.part-worn", {}, el("span.part-dot", { "aria-hidden": "true" }), dressName);
+  list.append(dressRow);
+  store.on(["dressed", "solo"], (s) => {
+    dressRow.dataset.shown = String(s.dressed);
+    dressRow.dataset.ghost = String(s.solo !== null && s.solo !== "skin");
+    dressName.setAttribute("aria-pressed", String(s.dressed));
+  });
+
   store.on(["hidden", "solo"], (s) => {
     for (const layer of LAYERS) {
       const id = layer.id as LayerId;
@@ -75,5 +87,6 @@ export function mountParts(app: App, stage: Stage): HTMLElement {
     list,
     el("h2.edge-title", {}, "View"),
     el("div.part-dials", {}, cut.root, apart.root, density.root, colour.root),
+    mountDress(app),
   );
 }
