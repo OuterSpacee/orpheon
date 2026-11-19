@@ -11,7 +11,7 @@ beforeAll(async () => {
   await ready("ipa");
 });
 
-const IDS = ["funiculi"];
+const IDS = ["funiculi", "donna"];
 const RANGE: Record<string, [number, number]> = { Soprano: [60, 81], Alto: [55, 74], Tenor: [48, 69], Bass: [40, 64] };
 
 function faults(id: string): string[] {
