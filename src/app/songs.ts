@@ -19,6 +19,8 @@ import { ADESTE } from "./written/adeste.ts";
 import { WELLERMAN } from "./written/wellerman.ts";
 import { EKLA_CHALO } from "./written/ekla.ts";
 import { DANNY } from "./written/danny.ts";
+import { FUNICULI } from "./written/funiculi.ts";
+import { DONNA } from "./written/donna.ts";
 
 export interface Song {
   id: string;
@@ -285,6 +287,8 @@ export const SONGS: Song[] = [
   WELLERMAN,
   EKLA_CHALO,
   DANNY,
+  FUNICULI,
+  DONNA,
 ];
 
 export const songById = (id: string): Song | undefined => SONGS.find((s) => s.id === id);

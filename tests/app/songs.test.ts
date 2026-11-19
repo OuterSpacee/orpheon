@@ -106,7 +106,9 @@ describe("the built-in songs", () => {
 
       test("the tune stays in a range a voice can sing, without wild leaps", () => {
         const pitches = notes.map((n) => n.midi);
-        // (a song written out whole may span a twelfth, as the Londonderry air does)
+        // a song written out whole is sung by its choir, each voice checked in its own range
+        // (tests/app/hymns.test.ts, songs-a.test.ts, songs-b.test.ts); its tune may span an octave
+        // and a fifth, as the Londonderry air does ("Funiculì, funiculà" and Verdi's canzone span less)
         expect(Math.max(...pitches) - Math.min(...pitches)).toBeLessThanOrEqual(song.captions ? 19 : 14);
         for (let i = 1; i < notes.length; i++) expect(Math.abs(notes[i].midi - notes[i - 1].midi)).toBeLessThanOrEqual(12);
       });
