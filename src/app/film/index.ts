@@ -34,6 +34,7 @@ import { Cue, drawFrame, titled } from "./overlay.ts";
 import type { Moment, Singer } from "./overlay.ts";
 import { Timeline } from "./timeline.ts";
 import { MOTIONS, randomMotion } from "../../view/motion.ts";
+import { planFor } from "./direct.ts";
 import type { MotionSpec } from "../../view/motion.ts";
 
 /** Seconds of quiet before a fast recording's performance starts, and after it ends (the room's tail). */
@@ -65,7 +66,7 @@ interface Settings {
 type Busy = { kind: "fast"; done: number; cancelled: boolean } | { kind: "live"; take: Take; auto: boolean } | null;
 
 /** The view's recording side, when the stage could draw at all. */
-type Lab = Pick<AnatomyViewLab, "film" | "onDrawn" | "hold" | "advance" | "pin" | "spot" | "frameOf" | "motion">;
+type Lab = Pick<AnatomyViewLab, "film" | "onDrawn" | "hold" | "advance" | "pin" | "spot" | "frameOf" | "motion" | "direct">;
 const labOf = (view: Stage["view"]): Lab | null => {
   const v = view as Partial<AnatomyViewLab>;
   return typeof v.film === "function" && typeof v.advance === "function" ? (v as Lab) : null;
@@ -137,6 +138,7 @@ export function mountFilm(app: App, stage: Stage, go: () => void): Film {
     pick: (id) => {
       settings.motion = id;
       lab?.motion(motionSpec());
+      direct();
       paint();
     },
   });
@@ -146,6 +148,7 @@ export function mountFilm(app: App, stage: Stage, go: () => void): Film {
     settings.motion = "random";
     settings.seed = Math.floor(Math.random() * 1e9);
     lab?.motion(motionSpec());
+    direct();
     const spec = motionSpec();
     app.remark(`A new motion: ${spec.camera === "close" ? "close-ups" : spec.camera}, ${spec.strength > 0.7 ? "bold" : spec.strength > 0.5 ? "steady" : "gentle"}, a ${Math.round(spec.period)}-second cycle.`);
     paint();
@@ -274,7 +277,31 @@ export function mountFilm(app: App, stage: Stage, go: () => void): Film {
   store.on(["playing"], (s, before) => {
     if (s.playing && s.playing !== before.playing) liveSince = performance.now();
     if (!s.playing) liveSince = -1;
+    direct();
   });
+
+  /**
+   * The Cinematic camera is directed from the song: its shot list, read off the song's clock (the
+   * recording's frame when fast, the sound's position live). With nothing performed, or another
+   * motion, the camera follows the voices as they are heard.
+   */
+  function direct(): void {
+    if (!lab) return;
+    const spec = motionSpec();
+    if (!on || spec.camera !== "cinematic") return lab.direct(null, null);
+    if (fastSource) {
+      const f = fastSource;
+      return lab.direct(planFor(f.performance, f.singers, spec.seed, spec.strength), () => (fastSource ? fastSource.frame / fastSource.fps - LEAD : null));
+    }
+    const playing = store.get().playing;
+    if (!playing) return lab.direct(null, null);
+    const singers = castOf(store.get()).map((x) => ({ name: x.name, seat: x.seat, score: x.score }));
+    lab.direct(planFor(playing, singers, spec.seed, spec.strength), () => {
+      if (store.get().playing !== playing) return null;
+      const at = sound.position(0);
+      return at >= 0 ? at : null;
+    });
+  }
 
   function momentNow(dt: number): { moment: Moment; singers: Singer[] } {
     const s = store.get();
@@ -371,7 +398,7 @@ export function mountFilm(app: App, stage: Stage, go: () => void): Film {
     const key = l.room.map(Math.round).join(",");
     if (key !== roomKey) {
       roomKey = key;
-      lab.film({ width: shape.width, height: shape.height, room: l.room, ...(fastSource ? { singers: castFor(fastSource.performance, fastSource.singers) } : {}) });
+      lab.film({ width: shape.width, height: shape.height, room: l.room, names: singers.length > 1 ? l.names.tall : 0, ...(fastSource ? { singers: castFor(fastSource.performance, fastSource.singers) } : {}) });
     }
   }
 
@@ -394,7 +421,8 @@ export function mountFilm(app: App, stage: Stage, go: () => void): Film {
     roomKey = "";
     lab.onDrawn = compose;
     lab.motion(motionSpec());
-    lab.film({ width: shape.width, height: shape.height, room: layoutFor(momentNow(0).moment, castOf(store.get())).room });
+    direct();
+    lab.film({ width: shape.width, height: shape.height, room: layoutFor(momentNow(0).moment, castOf(store.get())).room, names: castOf(store.get()).length > 1 ? layoutFor(momentNow(0).moment, castOf(store.get())).names.tall : 0 });
     paint();
     place();
   }
@@ -405,6 +433,7 @@ export function mountFilm(app: App, stage: Stage, go: () => void): Film {
     if (lab) {
       lab.onDrawn = null;
       lab.motion(null);
+      lab.direct(null, null);
       lab.film(null);
     }
     stage.canvas.style.cssText = "";
@@ -498,6 +527,7 @@ export function mountFilm(app: App, stage: Stage, go: () => void): Film {
       encoding = await encode(chosen, fps, { channels: rendered.channels, sampleRate: filmJob.sampleRate });
       const singers = castOf({ ...s, playing: p }).map((x) => ({ name: x.name, seat: x.seat, score: x.score }));
       fastSource = { rendered, voices: filmJob.parts.length, players: (filmJob.band ?? []).length, frame: 0, fps, performance: p, singers };
+      direct();
       lab.hold(true);
       lab.pin(0);
       roomKey = "";
@@ -544,12 +574,13 @@ export function mountFilm(app: App, stage: Stage, go: () => void): Film {
       }
     } finally {
       fastSource = null;
+      direct();
       busy = null;
       roomKey = "";
       lab.pin(-1);
       lab.hold(false);
       // The page's own cast comes back.
-      lab.film({ width: shape.width, height: shape.height, room: layoutFor(momentNow(0).moment, castOf(store.get())).room });
+      lab.film({ width: shape.width, height: shape.height, room: layoutFor(momentNow(0).moment, castOf(store.get())).room, names: castOf(store.get()).length > 1 ? layoutFor(momentNow(0).moment, castOf(store.get())).names.tall : 0 });
       paint();
     }
   }
@@ -567,6 +598,7 @@ export function mountFilm(app: App, stage: Stage, go: () => void): Film {
       set: (patch: Partial<Settings>) => {
         Object.assign(settings, patch);
         if (on) lab?.motion(motionSpec());
+        direct();
       },
       close: exit,
       fast: (options: { webm?: boolean } = {}) => recordFast(options).then(() => lastFile),

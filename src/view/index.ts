@@ -10,7 +10,8 @@ import { LAYERS, type AnatomyView, type Body, type LayerId, type Pose } from "..
 import { JAW_PIVOT } from "./body.ts";
 import { land, makeEye, see } from "./camera.ts";
 import { CAST_MAX, RESTING, arrange, makeSeat, placePoint, settleSeat } from "./cast.ts";
-import { frameStep } from "./framing.ts";
+import type { Placement } from "./cast.ts";
+import { BACK_ROW, KEEP, UNDER_CHIN, frameShot, frameStep, inRows, lookPoint, shotRoom, shotTurn } from "./framing.ts";
 import { BYTES, FLOATS, type Part } from "./dust.ts";
 import { makeCanvas, program, sizeCanvas, uniforms } from "./gl.ts";
 import { BUILT, DENSITY_USUAL, STYLE } from "./layers.ts";
@@ -21,6 +22,7 @@ import { makePace } from "./pace.ts";
 import { BLUR_FRAGMENT, DUST_FRAGMENT, DUST_VERTEX, FINISH_FRAGMENT, SCREEN_VERTEX, SHRINK_FRAGMENT } from "./shaders.ts";
 import { N } from "./tract.ts";
 import { Motion, type HeadInput, type MotionSpec } from "./motion.ts";
+import type { Plan } from "./director.ts";
 import { Eyes } from "./eyes.ts";
 import { TELEMETRY } from "../contract.ts";
 import { ITEM_STYLE, SHADE, coverOf } from "./decor/items.ts";
@@ -48,9 +50,10 @@ export interface AnatomyViewLab extends AnatomyView {
   /**
    * Where a singer's head is on the canvas, in CSS pixels: x, y the point just under its chin
    * (where a name can be written), size its height from the crown to there. Null for a singer
-   * not in the cast.
+   * not in the cast. `light` is how lit the shot leaves it (1, or less for a head a directed shot
+   * leaves in the dark), for its name to fade with it.
    */
-  spot(index: number): { x: number; y: number; size: number } | null;
+  spot(index: number): { x: number; y: number; size: number; light: number } | null;
   /** Called when the pointer moves onto or off a singer's head (its index in the cast, or -1). */
   onSinger: ((index: number) => void) | null;
   /**
@@ -73,13 +76,22 @@ export interface AnatomyViewLab extends AnatomyView {
    * Recording a video: draw exactly `width` × `height` pixels whatever size the canvas has on the
    * page, with room() and spot() in those pixels. The heads are framed in `room` (left, top, right,
    * bottom insets); the page's own room() calls are kept for when the recording frame goes.
-   * `singers`, if given, stand on the stage instead of the page's cast until then. null ends it.
+   * `singers`, if given, stand on the stage instead of the page's cast until then. `names`, if
+   * given, is how tall a name under a chin is: the room's bottom holds that much back for the
+   * names of a wide shot, and a directed shot may use it as long as its heads' names still fit.
+   * null ends it.
    */
-  film(frame: { width: number; height: number; room: readonly number[]; singers?: Singer[] } | null): void;
+  film(frame: { width: number; height: number; room: readonly number[]; singers?: Singer[]; names?: number } | null): void;
   /** Called after every frame is drawn, while the picture is still in the canvas to be copied. */
   onDrawn: (() => void) | null;
   /** How the heads and the camera move (the video's motion); null keeps them still. */
   motion(spec: MotionSpec | null): void;
+  /**
+   * A song's shot list for the Cinematic camera (director.ts), and the song's clock: seconds into
+   * the song, read at every frame (null while nothing is performed, when the camera follows the
+   * voices as they are heard instead). null, null ends it.
+   */
+  direct(plan: Plan | null, clock: (() => number | null) | null): void;
   /**
    * How thick the cloud is: 0 a few motes of light .. 1 every particle made. DENSITY_USUAL is the
    * page's ordinary look. A thin cloud is dimmer and its motes larger; a dense one finer and brighter.
@@ -117,8 +129,7 @@ const SOLO_LEAST = 7.5;
 const CLOUD = 1024;
 /** In a choir the heads are busts: the frame stops here, where the shader has faded them. */
 const BUST_END = -12.5;
-/** The point under the chin where a singer's name goes, and the crown above it. */
-const UNDER_CHIN = [1.5, -12.5, 0] as const;
+/** The crown, above the point under the chin where a singer's name goes. */
 const CROWN = [-0.5, 18, 0] as const;
 /**
  * Particles each singer gets, as a share of the solo head's, for a cast of n: the heads are
@@ -229,6 +240,28 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
   // The singers: a place on the stage and a body moved by its own telemetry for each. The first
   // is there from the start, alone: the solo head.
   const seats = Array.from({ length: CAST_MAX }, (_, i) => ({ ...makeSeat(), moving: makeMoving(), eyes: new Eyes(i), outfit: BARE as Outfit, items: [] as ItemId[] }));
+  /** How high what each item reaches above the head's middle (head space, cm): a hat taller than the crown. */
+  const wornTop = new Map<ItemId, number>();
+  /**
+   * The points of a seat's head a directed shot keeps in the frame: the head's own (framing.ts's
+   * KEEP) and, when it wears something taller than its crown, the top of that too.
+   */
+  function keepOf(seat: { items: readonly ItemId[] }): readonly (readonly [number, number, number])[] {
+    if (!(wanted.dressed > 0.5) || !seat.items.length) return KEEP;
+    let top = -Infinity;
+    for (const id of seat.items) {
+      let y = wornTop.get(id);
+      if (y === undefined) {
+        const m = worn.get(id)?.part.marks;
+        if (!m) continue;
+        y = -Infinity;
+        for (let k = 1; k < m.length; k += 3) y = Math.max(y, m[k]);
+        wornTop.set(id, y);
+      }
+      top = Math.max(top, y);
+    }
+    return top > KEEP[0][1] ? [...KEEP, [KEEP[0][0], top, 0]] : KEEP;
+  }
   /** Lids held for a picture, or null. */
   let lidsHeld: number | null = null;
   // The heads' own movement and the camera's (still, unless the video asks).
@@ -242,8 +275,22 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
   let frameShiftX = 0, frameShiftY = 0, camShiftX = 0, camShiftY = 0;
   /** The most the camera may zoom and still keep its shot (heads and names) inside the frame: measured each frame, eased. */
   let camZoomCap = 4;
-  /** Points of a head that must stay in the frame: the crown, the face, the back of the skull, and below the chin where its name is written. */
-  const KEEP = [[-0.5, 19, 0], [13, 3, 0], [-11, 5, 0], [1.5, -22, 0]] as const;
+  /** The heads on the stage now, the fit the shot rides on, and the shot's own zoom and slide. */
+  const present: (Placement | null)[] = new Array(CAST_MAX).fill(null);
+  const shotBase = { zoom: 1, shiftX: 0, shiftY: 0 };
+  const shot = { zoom: 1, shiftX: 0, shiftY: 0 };
+  /** The song's clock for a directed camera, and how far in the directed shot is (the camera's zoom). */
+  let clockOf: (() => number | null) | null = null;
+  /** While a video is recorded: how tall a name under a chin is, in the recording's pixels. */
+  let namesTall = 0;
+  /**
+   * How lit each head is for the shot: a head the shot leaves cut by the frame's edge sinks into
+   * the dark, as one outside the stage light does, so the edge never shows half a face in full light.
+   */
+  const edgeLit = new Float32Array(CAST_MAX).fill(1);
+  /** Does the choir stand in more than one row? */
+  let rows = false;
+  let directZoom = 1;
   seats[0].wanted = true;
   seats[0].here = 1;
   let castCount = 1;
@@ -486,20 +533,26 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
       scratch[2] = (z0 + z1) / 2;
     }
     // The camera may look toward the heads singing now (the video's follow and close-ups).
-    if (motion.camera.toward > 0.001 && who.length > 1) {
+    const cam = motion.camera;
+    if (cam.toward > 0.001 && (who.length > 1 || cam.directed)) {
       let weight = 0;
       leadSum.fill(0);
+      const d = cam.directed ? cam.detail : 0;
       for (const i of who) {
-        const w = motion.camera.focus[i] ?? 0;
+        const w = cam.focus[i] ?? 0;
         if (w <= 0) continue;
-        placePoint(seats[i].now, 2, 3, 0, leadAt);
+        if (cam.directed) lookPoint(seats[i].now, d, leadAt);
+        else placePoint(seats[i].now, 2, 3, 0, leadAt);
         for (let c = 0; c < 3; c++) leadSum[c] += leadAt[c] * w;
         weight += w;
       }
       camFocus = weight > 1e-6;
       if (camFocus) for (let c = 0; c < 3; c++) focusAt[c] = leadSum[c] / weight;
     } else camFocus = false;
-    const k = instant ? 1 : 1 - Math.exp(-dt / 0.5);
+    // A directed camera may circle the shot's heads rather than the choir's middle; its shot list
+    // is already smooth, so the eye goes where it says at once.
+    if (cam.directed && camFocus) for (let c = 0; c < 3; c++) scratch[c] += (focusAt[c] - scratch[c]) * cam.pivot * cam.toward;
+    const k = instant || cam.directed ? 1 : 1 - Math.exp(-dt / 0.5);
     for (let c = 0; c < 3; c++) eye.at[c] += (scratch[c] - eye.at[c]) * k;
     // The faint lift behind the head grows to lie behind the whole choir.
     spread = 1 + (Math.max(1, (x1 - x0) / 24, (y1 - y0) / 34) - 1) * choir;
@@ -518,10 +571,15 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
 
   /** Point the eye for this frame, and frame what it sees. */
   function aim(dt: number): void {
-    const instant = calm.matches || !framed;
+    const instant = calm.matches || !framed || motion.camera.cut;
     const scale = canvas.width / wideOf();
-    eye.yaw = pointer.yaw + motion.camera.yaw;
-    eye.pitch = pointer.pitch + motion.camera.pitch;
+    // A directed shot's turn, which a choir standing in rows takes less of (framing.ts).
+    const cam = motion.camera;
+    for (let i = 0; i < CAST_MAX; i++) present[i] = seats[i].wanted && seats[i].here >= 0.5 ? seats[i].goal : null;
+    rows = inRows(present);
+    const turn = cam.directed ? shotTurn(cam, rows) : cam;
+    eye.yaw = pointer.yaw + turn.yaw;
+    eye.pitch = pointer.pitch + turn.pitch;
     // The framing slides the eye to centre the whole cast; the camera's own slide rides on top.
     eye.shiftX = frameShiftX;
     eye.shiftY = frameShiftY;
@@ -533,6 +591,112 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
     }
     frameShiftX = eye.shiftX;
     frameShiftY = eye.shiftY;
+    if (motion.camera.directed) aimDirected(scale);
+    else aimFollowing(dt, instant, scale);
+    framed = true;
+    if (motion.camera.directed) lightShot(scale);
+    else edgeLit.fill(1);
+    // Where each singer's head landed, for the page to write its name under it.
+    for (let i = 0; i < CAST_MAX; i++) {
+      const place = seats[i].now;
+      placePoint(place, UNDER_CHIN[0], UNDER_CHIN[1], UNDER_CHIN[2], scratch);
+      land(eye, scratch[0], scratch[1], scratch[2], spot);
+      spots[i * 3] = spot[0];
+      spots[i * 3 + 1] = spot[1];
+      placePoint(place, CROWN[0], CROWN[1], CROWN[2], scratch);
+      land(eye, scratch[0], scratch[1], scratch[2], spot);
+      spots[i * 3 + 2] = spot[1];
+    }
+  }
+
+  /** Each head's box on the picture this frame (left, top, right, bottom), for the shot's light. */
+  const boxes = new Float32Array(CAST_MAX * 4);
+  /**
+   * The shot's light: a head the frame's edge cuts sinks into the dark, as one outside the stage
+   * light does, and so does one that stands over the heads the shot is on (a row in front, a
+   * neighbour close to the eye), so the edge never shows half a face in full light and nothing
+   * looms over the singer.
+   */
+  function lightShot(scale: number): void {
+    const cam = motion.camera;
+    const W = eye.width, H = eye.height;
+    const room = shotRoom(eye, wanted.room, scale, namesTall * scale);
+    const bottom = room.top + room.fh;
+    const sstep = (x: number) => {
+      const k = Math.max(0, Math.min(1, x));
+      return k * k * (3 - 2 * k);
+    };
+    let most = 0;
+    for (let i = 0; i < CAST_MAX; i++) most = Math.max(most, cam.focus[i] ?? 0);
+    const inShot = (i: number) => 1 - cam.toward + cam.toward * (most > 0 ? (cam.focus[i] ?? 0) / most : 1);
+    for (let i = 0; i < CAST_MAX; i++) {
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const p of keepOf(seats[i])) {
+        placePoint(seats[i].now, p[0], p[1] * 0.8, p[2], scratch);
+        land(eye, scratch[0], scratch[1], scratch[2], spot);
+        if (spot[2] <= 0) continue;
+        x0 = Math.min(x0, spot[0]);
+        x1 = Math.max(x1, spot[0]);
+        y0 = Math.min(y0, spot[1]);
+        y1 = Math.max(y1, spot[1]);
+      }
+      boxes.set([x0, y0, x1, y1], i * 4);
+    }
+    for (let j = 0; j < CAST_MAX; j++) {
+      const b = j * 4;
+      const x0 = boxes[b], y0 = boxes[b + 1], x1 = boxes[b + 2], y1 = boxes[b + 3];
+      if (!(x1 > x0 && y1 > y0)) {
+        edgeLit[j] = 0.25;
+        continue;
+      }
+      const w = x1 - x0, h = y1 - y0;
+      // cut by the picture's edge: any head, even one of the shot's on its way in
+      const cut = Math.max((Math.max(0, -x0) + Math.max(0, x1 - W)) / w, (Math.max(0, -y0) + Math.max(0, y1 - H)) / h);
+      let lit = 1 - 0.75 * sstep((cut - 0.02) / 0.3);
+      const off = 1 - inShot(j);
+      if (off > 0.01) {
+        // outside the shot: past the room's edges (down into the words, the band), or over the shot's heads
+        const out = Math.max((Math.max(0, room.left - x0) + Math.max(0, x1 - room.left - room.fw)) / w, (Math.max(0, room.top - y0) + Math.max(0, y1 - bottom)) / h);
+        let cover = 0;
+        let sameRow = false;
+        for (let i = 0; i < CAST_MAX; i++) {
+          if (i === j || !seats[i].wanted || (cam.focus[i] ?? 0) <= 0.2) continue;
+          const a = i * 4;
+          const ow = Math.max(0, Math.min(boxes[a + 2], x1) - Math.max(boxes[a], x0));
+          const oh = Math.max(0, Math.min(boxes[a + 3], y1) - Math.max(boxes[a + 1], y0));
+          cover = Math.max(cover, (ow * oh) / Math.max(1, (boxes[a + 2] - boxes[a]) * (boxes[a + 3] - boxes[a + 1])));
+          if (Math.abs(seats[i].goal.z - seats[j].goal.z) < BACK_ROW) sameRow = true;
+        }
+        const dim = Math.max(0.92 * sstep((out - 0.02) / 0.25), 0.85 * sstep((cover - 0.04) / 0.3), rows && !sameRow ? 0.7 : 0);
+        lit = Math.min(lit, 1 - off * dim);
+      }
+      edgeLit[j] = lit;
+    }
+  }
+
+  /**
+   * A directed shot, framed exactly every frame (the shot list is smooth already, so nothing here
+   * eases); a cut is framed in a few more rounds, from nothing.
+   */
+  function aimDirected(scale: number): void {
+    const cam = motion.camera;
+    if (cam.cut) camShiftX = camShiftY = 0;
+    for (let i = 0; i < CAST_MAX; i++) present[i] = seats[i].wanted && seats[i].here >= 0.5 ? seats[i].now : null;
+    shotBase.zoom = pointer.zoom * fit;
+    shotBase.shiftX = frameShiftX;
+    shotBase.shiftY = frameShiftY;
+    shot.zoom = directZoom;
+    shot.shiftX = camShiftX;
+    shot.shiftY = camShiftY;
+    frameShot(eye, shotBase, present, cam, camFocus ? focusAt : null, wanted.room, scale, namesTall * scale, shot, cam.cut ? 5 : 3);
+    directZoom = shot.zoom;
+    camShiftX = shot.shiftX;
+    camShiftY = shot.shiftY;
+    camZoomCap = Math.max(1, directZoom);
+  }
+
+  /** The camera that follows the voices as they are heard: eased toward the singing heads. */
+  function aimFollowing(dt: number, instant: boolean, scale: number): void {
     const camZoom = Math.max(1, Math.min(motion.camera.zoom, camZoomCap));
     eye.zoom = pointer.zoom * fit * camZoom;
     eye.shiftX = frameShiftX + camShiftX;
@@ -576,7 +740,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
         if (!seat.wanted || seat.here < 0.5) continue;
         // (a voice the shot is turning to counts at once: its head must not be cut on the way in)
         if (close && castCount > 1 && (motion.camera.focus[i] ?? 0) < 0.04) continue;
-        for (const p of KEEP) {
+        for (const p of keepOf(seat)) {
           placePoint(seat.now, p[0], p[1], p[2], scratch);
           land(eye, scratch[0], scratch[1], scratch[2], spot);
           if (spot[2] <= 0) continue;
@@ -595,18 +759,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
         camZoomCap += (goal - camZoomCap) * (instant ? 1 : 1 - Math.exp(-dt / (goal < camZoomCap ? 0.25 : 1.5)));
       }
     } else camZoomCap = 4;
-    framed = true;
-    // Where each singer's head landed, for the page to write its name under it.
-    for (let i = 0; i < CAST_MAX; i++) {
-      const place = seats[i].now;
-      placePoint(place, UNDER_CHIN[0], UNDER_CHIN[1], UNDER_CHIN[2], scratch);
-      land(eye, scratch[0], scratch[1], scratch[2], spot);
-      spots[i * 3] = spot[0];
-      spots[i * 3 + 1] = spot[1];
-      placePoint(place, CROWN[0], CROWN[1], CROWN[2], scratch);
-      land(eye, scratch[0], scratch[1], scratch[2], spot);
-      spots[i * 3 + 2] = spot[1];
-    }
+    directZoom = camZoom;
   }
 
   function pass(to: WebGLFramebuffer | null, width: number, height: number): void {
@@ -643,7 +796,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
       m.level = seat.moving.now[TELEMETRY.level] || 0;
       m.f0 = seat.moving.now[TELEMETRY.f0] || 0;
     }
-    motion.step(calm.matches ? 0 : dt, motionIn);
+    motion.step(calm.matches ? 0 : dt, motionIn, calm.matches ? null : (clockOf?.() ?? null));
     settle(dt);
     for (const seat of seats) if (seat.wanted || seat.here > 0.002) seat.moving.step(dt);
     aim(dt);
@@ -689,7 +842,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
       gl!.uniform2f(du.u_turn, Math.cos(turn), Math.sin(turn));
       gl!.uniform2f(du.u_bend, pose?.nod ?? 0, pose?.tilt ?? 0);
       // Alone, the head is always fully lit; in a choir a silent singer rests dim.
-      gl!.uniform1f(du.u_lit, seat.here * (1 + (RESTING + (1 - RESTING) * seat.lit - 1) * choir));
+      gl!.uniform1f(du.u_lit, seat.here * edgeLit[h] * (1 + (RESTING + (1 - RESTING) * seat.lit - 1) * choir));
       gl!.uniform1f(du.u_flicker, moving.sparks);
       gl!.uniform4f(du.u_jaw, moving.jawCos, moving.jawSin, JAW_PIVOT[0], JAW_PIVOT[1]);
       gl!.uniform4f(du.u_lip, moving.lipDrop, moving.lipWidth, moving.lipReach, 0);
@@ -836,6 +989,10 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
     motion(spec) {
       motion.set(spec);
     },
+    direct(plan, clock) {
+      motion.direct(plan);
+      clockOf = plan ? clock : null;
+    },
     density(amount: number) {
       look.wantDensity = Math.min(1, Math.max(0.05, amount));
     },
@@ -850,6 +1007,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
     },
     film(frame) {
       fixed = frame ? { width: Math.max(1, Math.round(frame.width)), height: Math.max(1, Math.round(frame.height)) } : null;
+      namesTall = Math.max(0, frame?.names ?? 0);
       const r = wanted.room;
       for (let i = 0; i < 4; i++) r[i] = Math.max(0, (frame ? frame.room[i] : pageRoom[i]) || 0);
       if (frame?.singers) {
@@ -866,7 +1024,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
       const seat = seats[index];
       if (!seat?.wanted) return null;
       const k = Math.max(1, canvas.width) / wideOf();
-      return { x: spots[index * 3] / k, y: spots[index * 3 + 1] / k, size: (spots[index * 3 + 1] - spots[index * 3 + 2]) / k };
+      return { x: spots[index * 3] / k, y: spots[index * 3 + 1] / k, size: (spots[index * 3 + 1] - spots[index * 3 + 2]) / k, light: edgeLit[index] };
     },
     onSinger: null as ((index: number) => void) | null,
     layer(id: LayerId, amount: number) {
@@ -948,7 +1106,7 @@ function build(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): AnatomyVi
 function blank(): AnatomyViewLab {
   return {
     frame() {}, layer() {}, solo() {}, explode() {}, cut() {}, look() {}, room() {}, onGrab: null, onHover: null, dispose() {},
-    cast() {}, frameOf() {}, spot: () => null, onSinger: null, film() {}, onDrawn: null, motion() {}, density() {}, colour() {}, lids() {}, decorations() {},
+    cast() {}, frameOf() {}, spot: () => null, onSinger: null, film() {}, onDrawn: null, motion() {}, direct() {}, density() {}, colour() {}, lids() {}, decorations() {},
     measure: () => 0,
     advance() {},
     pin() {},
@@ -957,3 +1115,4 @@ function blank(): AnatomyViewLab {
     hold() {},
   };
 }
+

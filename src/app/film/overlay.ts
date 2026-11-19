@@ -237,7 +237,7 @@ export function drawFrame(
   l: Layout,
   m: Moment,
   showing: Showing,
-  spot: (index: number) => { x: number; y: number; size: number } | null,
+  spot: (index: number) => { x: number; y: number; size: number; light?: number } | null,
   timeline?: { draw: Timeline["draw"] } | null,
   dt = 0,
 ): void {
@@ -266,12 +266,18 @@ export function drawFrame(
       if (box) drawInstrument(ctx, box, part.instrument, INSTRUMENTS.find((x) => x.id === part.instrument)?.name ?? part.name, part.sense, u, i, l.bandName);
     });
 
-  // Each singer's name under its chin, and the word it is singing.
+  // Each singer's name under its chin, and the word it is singing; the names stop above the words and the band.
+  const floor = Math.min(l.height, ...[l.caption, l.lyric, l.timeline, ...l.band].flatMap((box) => (box ? [box.y] : [])));
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   m.singers.forEach((singer, i) => {
     const at = spot(i);
     if (!at) return;
+    // A head the camera has left at the frame's edge (or off it) lets its name go, not cut in half.
+    const edge = 90 * u;
+    const inside = Math.max(0, Math.min(1, Math.min(at.x - edge / 2, l.width - edge / 2 - at.x) / edge, (floor + 6 * u - l.names.tall - at.y) / (20 * u))) * Math.min(1, Math.max(0, ((at.light ?? 1) - 0.25) / 0.6));
+    if (inside <= 0.01) return;
+    ctx.globalAlpha = inside;
     const y = at.y + 4 * u;
     ctx.font = `300 ${l.names.size}px ${SANS}`;
     ctx.letterSpacing = `${(0.08 * l.names.size).toFixed(1)}px`;
@@ -281,6 +287,7 @@ export function drawFrame(
       ctx.font = `300 ${l.names.wordSize}px ${SANS}`;
       lit(ctx, singer.word, at.x, y + l.names.size * 1.4, rgb(mix(INK, WARM, singer.level)), 12 * u);
     }
+    ctx.globalAlpha = 1;
   });
 
   // The voices' timeline.
